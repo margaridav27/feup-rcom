@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <termios.h>
+#include <unistd.h>
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -21,16 +22,17 @@
 
 enum state { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
-int conta = 1;
+int flag=1,try=1;
 
-void atende() {
-  printf("alarme # %d\n", conta);
-  conta++;
+void handler()                  
+{
+	printf("alarme # %d\n", try);
+	flag=1;
+	try++;
 }
 
-int main(int argc, char** argv) {
-  (void)signal(SIGALRM, atende);
 
+int main(int argc, char** argv) {
   unsigned char cmd[5], ans[1], ack[5];
   enum state msg_state = START;
   int fd, c, res;
@@ -83,61 +85,66 @@ int main(int argc, char** argv) {
   cmd[3] = CMD_BUF ^ SET;
   cmd[4] = FLAG;
 
-  /* send SET command to receiver */
-  res = write(fd, cmd, 5);
-
-  printf("Sent to receiver: %x %x %x %x %x (%d bytes)\n", cmd[0], cmd[1],
-         cmd[2], cmd[3], cmd[4], res);
+  
 
   printf("Feedback from receiver: \n");
-
+  (void) signal(SIGALRM, handler);
   /* read UA command sent from receiver */
-  while (msg_state != STOP && conta < 4) {
-    alarm(1);
-    res = read(fd, ans, 1);
-    if (res > 0)
-      printf("%x ", ans[0]);
-
-    switch (msg_state) {
-      case START:
-        if (ans[0] == FLAG)
-          msg_state = FLAG_RCV;
-        break;
-      case FLAG_RCV:
-        if (ans[0] == MSG_BUF)
-          msg_state = A_RCV;
-        else
-          msg_state = START;
-        break;
-      case A_RCV:
-        if (ans[0] == UA)
-          msg_state = C_RCV;
-        else if (ans[0] == FLAG)
-          msg_state = FLAG_RCV;
-        else
-          msg_state = START;
-        break;
-      case C_RCV:
-        if (ans[0] == MSG_BUF ^ UA)
-          msg_state = BCC_OK;
-        else if (ans[0] == FLAG)
-          msg_state = FLAG_RCV;
-        else
-          msg_state = START;
-        break;
-      case BCC_OK:
-        if (ans[0] == FLAG)
-          msg_state = STOP;
-        else
-          msg_state = START;
-        break;
-      default:
-        msg_state = START;
-        break;
+  while (msg_state != STOP && try < 4) {
+    if(flag){
+      /* send SET command to receiver */
+      printf("1\n");
+      res = write(fd, cmd, 5);
+      alarm(3);
+      msg_state = START;
+      printf("Sent to receiver: %x %x %x %x %x (%d bytes)\n", cmd[0], cmd[1],
+      cmd[2], cmd[3], cmd[4], res);
     }
+      flag = 0;
+      res = read(fd, ans, 1);
+
+      switch (msg_state) {
+        case START:
+          if (ans[0] == FLAG)
+            msg_state = FLAG_RCV;
+          break;
+        case FLAG_RCV:
+          if (ans[0] == MSG_BUF)
+            msg_state = A_RCV;
+          else
+            msg_state = START;
+          break;
+        case A_RCV:
+          if (ans[0] == UA)
+            msg_state = C_RCV;
+          else if (ans[0] == FLAG)
+            msg_state = FLAG_RCV;
+          else
+            msg_state = START;
+          break;
+        case C_RCV:
+          if (ans[0] == MSG_BUF ^ UA)
+            msg_state = BCC_OK;
+          else if (ans[0] == FLAG)
+            msg_state = FLAG_RCV;
+          else
+            msg_state = START;
+          break;
+        case BCC_OK:
+          if (ans[0] == FLAG)
+            msg_state = STOP;
+          else
+            msg_state = START;
+          break;
+        default:
+          msg_state = START;
+          break;
+      }
   }
 
-  printf("\nUA received\n");
+  if (msg_state == STOP)
+    printf("\nUA received\n");
+  else printf("\nUA not received\n");
 
   sleep(2);
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
