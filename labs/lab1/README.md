@@ -1,5 +1,6 @@
 
 APPLICATION LAYER - CRIAR PACOTE
+
      receber nome do ficheiro
      abrir porta serie
      enviar pacote com nome e tamanho do ficheiro
