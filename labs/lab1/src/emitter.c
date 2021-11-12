@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
       res = write(fd, cmd, 5);
       alarm(3);
       msg_state = START;
-      printf("Sent to receiver: %x %x %x %x %x (%d bytes)\n", cmd[0], cmd[1],
+      printf("tentativa %d: %x %x %x %x %x (%d bytes)\n", try, cmd[0], cmd[1],
              cmd[2], cmd[3], cmd[4], res);
     }
 
