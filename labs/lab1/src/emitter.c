@@ -22,15 +22,13 @@
 
 enum state { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
-int flag=1,try=1;
+int flag = 1, try = 1;
 
-void handler()                  
-{
-	printf("alarme # %d\n", try);
-	flag=1;
-	try++;
+void handler() {
+  printf("alarme # %d\n", try);
+  flag = 1;
+  try++;
 }
-
 
 int main(int argc, char** argv) {
   unsigned char cmd[5], ans[1], ack[5];
@@ -85,66 +83,68 @@ int main(int argc, char** argv) {
   cmd[3] = CMD_BUF ^ SET;
   cmd[4] = FLAG;
 
-  
-
   printf("Feedback from receiver: \n");
-  (void) signal(SIGALRM, handler);
+
+  (void)signal(SIGALRM, handler);
+
   /* read UA command sent from receiver */
   while (msg_state != STOP && try < 4) {
-    if(flag){
+    if (flag) {
       /* send SET command to receiver */
       printf("1\n");
       res = write(fd, cmd, 5);
       alarm(3);
       msg_state = START;
       printf("Sent to receiver: %x %x %x %x %x (%d bytes)\n", cmd[0], cmd[1],
-      cmd[2], cmd[3], cmd[4], res);
+             cmd[2], cmd[3], cmd[4], res);
     }
-      flag = 0;
-      res = read(fd, ans, 1);
 
-      switch (msg_state) {
-        case START:
-          if (ans[0] == FLAG)
-            msg_state = FLAG_RCV;
-          break;
-        case FLAG_RCV:
-          if (ans[0] == MSG_BUF)
-            msg_state = A_RCV;
-          else
-            msg_state = START;
-          break;
-        case A_RCV:
-          if (ans[0] == UA)
-            msg_state = C_RCV;
-          else if (ans[0] == FLAG)
-            msg_state = FLAG_RCV;
-          else
-            msg_state = START;
-          break;
-        case C_RCV:
-          if (ans[0] == MSG_BUF ^ UA)
-            msg_state = BCC_OK;
-          else if (ans[0] == FLAG)
-            msg_state = FLAG_RCV;
-          else
-            msg_state = START;
-          break;
-        case BCC_OK:
-          if (ans[0] == FLAG)
-            msg_state = STOP;
-          else
-            msg_state = START;
-          break;
-        default:
+    flag = 0;
+    res = read(fd, ans, 1);
+
+    switch (msg_state) {
+      case START:
+        if (ans[0] == FLAG)
+          msg_state = FLAG_RCV;
+        break;
+      case FLAG_RCV:
+        if (ans[0] == MSG_BUF)
+          msg_state = A_RCV;
+        else
           msg_state = START;
-          break;
-      }
+        break;
+      case A_RCV:
+        if (ans[0] == UA)
+          msg_state = C_RCV;
+        else if (ans[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case C_RCV:
+        if (ans[0] == MSG_BUF ^ UA)
+          msg_state = BCC_OK;
+        else if (ans[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case BCC_OK:
+        if (ans[0] == FLAG)
+          msg_state = STOP;
+        else
+          msg_state = START;
+        break;
+      default:
+        msg_state = START;
+        break;
+    }
   }
 
   if (msg_state == STOP)
     printf("\nUA received\n");
-  else printf("\nUA not received\n");
+  else
+    printf("\nUA not received\n");
 
   sleep(2);
   if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
