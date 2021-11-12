@@ -1,7 +1,8 @@
-#ifndef ALARM
-#define ALARM
+#ifndef ALARM_H
+#define ALARM_H
 
-int timeout();
+void setupAlarm();
+
 void handler();
 
 #endif

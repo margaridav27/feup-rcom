@@ -1,30 +1,16 @@
-#include <unistd.h>
+#include "../include/alarm.h"
 #include <signal.h>
 #include <stdio.h>
-#include "alarm.h"
+#include <unistd.h>
 
-int flag=1, try=1;
+int flag = 1, try = 1;
 
-void handler()                  
-{
-	printf("alarme # %d\n", try);
-	flag=1;
-	try++;
+void setupAlarm() {
+  (void)signal(SIGALRM, handler);
 }
 
-
-int timeout(int argc, char **argv)
-{
-
-(void) signal(SIGALRM, handler);
-
-while(try < 4){
-   if(flag){
-      alarm(3);
-      flag=0;
-   }
+void handler() {
+  printf("alarme # %d\n", try);
+  flag = 1;
+  try++;
 }
-printf("Vou terminar.\n");
-
-}
-

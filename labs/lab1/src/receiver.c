@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <termios.h>
-#include "alarm.h"
 
 #define BAUDRATE B38400
 #define _POSIX_SOURCE 1 /* POSIX compliant source */
@@ -67,15 +66,16 @@ int main(int argc, char** argv) {
     exit(-1);
   }
 
-  printf("New termios structure set\n");
+  printf("New termios structure set\n\n");
+
+  /* read SET command sent from emitter */
 
   printf("Received from emitter: \n");
 
-  /* read SET command sent from emitter */
   while (msg_state != STOP) {
     res = read(fd, rcv, 1);
     if (res > 0)
-      printf("%x ", rcv[0]);
+      printf("%x \n", rcv[0]);
 
     switch (msg_state) {
       case START:
@@ -131,7 +131,10 @@ int main(int argc, char** argv) {
          ua[4]);
 
   sleep(2);
-  tcsetattr(fd, TCSANOW, &oldtio);
+  if (tcsetattr(fd, TCSANOW, &oldtio) == -1) {
+    perror("tcsetattr");
+    exit(-1);
+  }
   close(fd);
   return 0;
 }

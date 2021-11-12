@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
+#include "../include/alarm.h"
 
 #define BAUDRATE B38400
 #define MODEMDEVICE "/dev/ttyS1"
@@ -22,13 +23,7 @@
 
 enum state { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
-int flag = 1, try = 1;
-
-void handler() {
-  printf("alarme # %d\n", try);
-  flag = 1;
-  try++;
-}
+extern int flag, try;
 
 int main(int argc, char** argv) {
   unsigned char cmd[5], ans[1], ack[5];
@@ -74,7 +69,7 @@ int main(int argc, char** argv) {
     perror("tcsetattr");
     exit(-1);
   }
-  printf("New termios structure set\n");
+  printf("New termios structure set\n\n");
 
   /* assemble SET command */
   cmd[0] = FLAG;
@@ -83,15 +78,12 @@ int main(int argc, char** argv) {
   cmd[3] = CMD_BUF ^ SET;
   cmd[4] = FLAG;
 
-  printf("Feedback from receiver: \n");
-
-  (void)signal(SIGALRM, handler);
+  setupAlarm();
 
   /* read UA command sent from receiver */
   while (msg_state != STOP && try < 4) {
     if (flag) {
       /* send SET command to receiver */
-      printf("1\n");
       res = write(fd, cmd, 5);
       alarm(3);
       msg_state = START;
@@ -151,7 +143,6 @@ int main(int argc, char** argv) {
     perror("tcsetattr");
     exit(-1);
   }
-
   close(fd);
   return 0;
 }
