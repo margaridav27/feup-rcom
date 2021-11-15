@@ -14,8 +14,12 @@ typedef struct {
 
 void setupLinkLayer();
 
-int establishment();
+int assembleCtrlFrame(char addr, char ctrl, char** frame);
 
-int createCommandFrame(unsigned char control, char** cmd);
+int writeCtrlFrame(char* frame);
+
+int readCtrlFrame(char* frame);
+
+int establishment();
 
 #endif

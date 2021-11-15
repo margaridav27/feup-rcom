@@ -1,18 +1,8 @@
-/*Non-Canonical Input Processing*/
-
-#include <fcntl.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <termios.h>
-#include <unistd.h>
 #include "../include/alarm.h"
+#include "../include/physical_layer.h"
 #include "../include/serial_port.h"
 
-#define MODEMDEVICE "/dev/ttyS1"
-#define _POSIX_SOURCE 1 /* POSIX compliant source */
+#include <stdio.h>
 
 int main(int argc, char** argv) {
   if ((argc < 2) || ((strcmp("/dev/ttyS0", argv[1]) != 0) &&
