@@ -21,7 +21,7 @@
 
 #define BCC1(addr, ctrl) ((addr) ^ (ctrl)) /* protection field */
 
-#define BAUDRATE B38400
+#define BAUDRATE 0xB38400
 
 enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
