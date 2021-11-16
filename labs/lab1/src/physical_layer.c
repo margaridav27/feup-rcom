@@ -1,27 +1,6 @@
 #include "../include/physical_layer.h"
-
-#define BIT(n) (0x01 << (n))
-
-#define FLAG 0x0d
-
-#define ADDR_CE_RR                                       \
-  0x03 /* commands sent by emitter and responses sent by \
-          receiver */
-#define ADDR_CR_RE                                        \
-  0x01 /* commands sent by receiver and responses sent by \
-          emitter */
-
-#define CTRL_SET 0x03  /* setup */
-#define CTRL_DISC 0x0b /* disconnect */
-#define CTRL_UA 0x07   /* unnumbered acknowledgment */
-#define CTRL_RR(r) \
-  0x05 | (((r) % 2) ? BIT(7) : 0x00) /* receiver ready - positive ACK */
-#define CTRL_REJ(r) \
-  0x01 | (((r) % 2) ? BIT(7) : 0x00) /* receiver reject - negative ACK */
-
-#define BCC1(addr, ctrl) ((addr) ^ (ctrl)) /* protection field */
-
-#define BAUDRATE 0xB38400
+#include <fcntl.h>
+#include "../include/macros.h"
 
 enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
@@ -124,4 +103,187 @@ int establishment() {
     printf("\nUA not received.\n");
     return -1;
   }
+}
+
+int acknowledgment() {
+  enum state_t msg_state = START;
+
+  int num_bytes_written, num_bytes_read;
+  char set_cmd[1], ua_cmd[5];
+
+  while (msg_state != STOP) {
+    /* read SET frame sent by emitter */
+    num_bytes_read = readCtrlFrame(set_cmd);
+
+    if (num_bytes_read > 0)
+      printf("%x \n", set_cmd[0]);
+
+    /* validate SET frame sent by emitter */
+    switch (msg_state) {
+      case START:
+        if (set_cmd[0] == FLAG)
+          msg_state = FLAG_RCV;
+        break;
+      case FLAG_RCV:
+        if (set_cmd[0] == ADDR_CE_RR)
+          msg_state = A_RCV;
+        else
+          msg_state = START;
+        break;
+      case A_RCV:
+        if (set_cmd[0] == CTRL_SET)
+          msg_state = C_RCV;
+        else if (set_cmd[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case C_RCV:
+        if (set_cmd[0] == BCC1(ADDR_CE_RR, CTRL_SET))
+          msg_state = BCC_OK;
+        else if (set_cmd[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case BCC_OK:
+        if (set_cmd[0] == FLAG)
+          msg_state = STOP;
+        else
+          msg_state = START;
+        break;
+      default:
+        msg_state = START;
+        break;
+    }
+  }
+
+  printf("\n");
+
+  /* assemble UA frame */
+  ua_cmd[0] = FLAG;
+  ua_cmd[1] = ADDR_CR_RE;
+  ua_cmd[2] = CTRL_UA;
+  ua_cmd[3] = BCC1(ADDR_CR_RE, CTRL_UA);
+  ua_cmd[4] = FLAG;
+
+  /* send UA frame to emitter */
+  num_bytes_written = writeCtrlFrame(ua_cmd);
+  printf("Sent to emissor: %x %x %x %x %x (%d bytes)\n", ua_cmd[0], ua_cmd[1],
+         ua_cmd[2], ua_cmd[3], ua_cmd[4], num_bytes_written);
+}
+
+int termination() {
+  /* end communication by
+    1. sending DISC ctrl frame
+    2. waiting for DISC ctrl frame that will be sent by receiver
+    3. sending UA ctrl frame and effectively ending communication
+  */
+
+  enum state_t msg_state = START;
+
+  int num_bytes_written, num_bytes_read;
+  char set_cmd[5], response[1];
+
+  assembleCtrlFrame(ADDR_CE_RR, CTRL_DISC, set_cmd);
+
+  while (msg_state != STOP && try < 4) {
+    if (flag) {
+      num_bytes_written = writeCtrlFrame(set_cmd);
+
+      printf("try #%d: %x %x %x %x %x (%d bytes)\n", try, set_cmd[0],
+             set_cmd[1], set_cmd[2], set_cmd[3], set_cmd[4], num_bytes_written);
+
+      alarm(3);
+      msg_state = START;
+    }
+
+    flag = 0;
+
+    num_bytes_read = readCtrlFrame(response);
+
+    switch (msg_state) {
+      case START:
+        if (response[0] == FLAG)
+          msg_state = FLAG_RCV;
+        break;
+      case FLAG_RCV:
+        if (response[0] == ADDR_CE_RR)
+          msg_state = A_RCV;
+        else
+          msg_state = START;
+        break;
+      case A_RCV:
+        if (response[0] == CTRL_DISC)
+          msg_state = C_RCV;
+        else if (response[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case C_RCV:
+        if (response[0] == BCC1(ADDR_CE_RR, CTRL_DISC))
+          msg_state = BCC_OK;
+        else if (response[0] == FLAG)
+          msg_state = FLAG_RCV;
+        else
+          msg_state = START;
+        break;
+      case BCC_OK:
+        if (response[0] == FLAG)
+          msg_state = STOP;
+        else
+          msg_state = START;
+        break;
+      default:
+        msg_state = START;
+        break;
+    }
+  }
+
+  if (msg_state != STOP)
+    return -1;
+
+  assembleCtrlFrame(ADDR_CE_RR, CTRL_UA, set_cmd);
+  num_bytes_written = writeCtrlFrame(set_cmd);
+
+  printf("Sent final UA to receiver: %x %x %x %x %x (%d bytes)\n", set_cmd[0],
+         set_cmd[1], set_cmd[2], set_cmd[3], set_cmd[4], num_bytes_written);
+
+  resetSerialPort();
+
+  close(link_layer.port);
+};
+
+int setPhysicalLayer(char* port) {
+  int fd_port = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+  if (fd_port < 0) {
+    perror("open port");
+    return -1;
+  }
+
+  /* setup serial port */
+  setupSerialPort(port);
+
+  /* establish connection by sending SET ctrl frame */
+  establishment();
+}
+
+int receive(char* filename, char* port) {
+  llopen(filename, port);
+
+  // wait for ctrl set frame
+  // send ctrl set frame to application layer for it to execute llopen
+
+  // wait for first frame - special frame
+
+  // loop
+  // read i-frame
+  // send rr or rej ctrl frame
+  // create packet
+  // send packet to application layer
+  // if i-frame == disc ctrl frame then break
+
+  llclose(filename, port);
+  return;
 }

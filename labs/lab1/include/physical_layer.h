@@ -22,4 +22,10 @@ int readCtrlFrame(char* frame);
 
 int establishment();
 
+int acknowledgment();
+
+int termination();
+
+int setPhysicalLayer(char* port);
+
 #endif
