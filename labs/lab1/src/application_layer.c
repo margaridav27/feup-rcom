@@ -23,9 +23,7 @@ application_layer_t application_layer;
 
 int init(char* file_name, char* port) {
   application_layer.file_name = file_name;
-  application_layer.file_descriptor =
-      open(file_name,
-           O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
+  application_layer.file_descriptor = open(file_name, O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
 
   if (application_layer.file_descriptor < 0) {
     perror("open file");
@@ -46,6 +44,11 @@ int createCtrlPacket(char ctrl, char* packet) {
       .length = OCTET_SIZE % size + 1,
       .value = malloc(file_size.length * sizeof(char))};
 
+  if (file_size.value == NULL) {
+    perror("file_size malloc");
+    return -1;
+  }
+
   int nth_byte = file_size.length - 1;  // starts at msb
   for (int i = 0; i < file_size.length; i++) {
     file_size.value[i] = (size >> (nth_byte * 8)) & 0xFF;  // get nth byte
@@ -59,6 +62,11 @@ int createCtrlPacket(char ctrl, char* packet) {
       .length = OCTET_SIZE % name_size + 1,
       .value = malloc(file_name.length * sizeof(char))};
 
+  if (file_name.value == NULL) {
+    perror("file_name malloc");
+    return -1;
+  }
+
   int nth_byte = file_name.length - 1;  // starts at msb
   for (int i = 0; i < file_name.length; i++) {
     file_name.value[i] = application_layer.file_name[i];
@@ -66,16 +74,35 @@ int createCtrlPacket(char ctrl, char* packet) {
   }
 
   packet = malloc(1 + sizeof(file_size) + sizeof(file_name));
-  // TODO preencher efetivamente o packet com os values
+
+  if (packet == NULL) {
+    perror("ctrl packet malloc");
+    return -1;
+  }
 
   packet[CTRL_IX] = ctrl;
+  // TODO preencher efetivamente o packet com os values
 
   return 0;
 }
 
 // TODO #1
-int createDataPacket() {
-  return -1;
+int createDataPacket(char* data, char seq_num, char* packet) {
+  char data_size = sizeof(data);
+
+  packet = malloc(4 + data_size);
+  if (packet == NULL) {
+    perror("data packet malloc");
+    return -1;
+  }
+
+  packet[CTRL_IX] = CTRL_DATA;
+  packet[DATA_SEQ_NUM_IX] = seq_num % DATA_SEQ_NUM_SIZE;
+  packet[DATA_LENGTH_MSB_IX] = (data_size & 0xFF00) >> 8;
+  packet[DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
+  memcpy(packet + DATA_START_IX, data, data_size);
+
+  return 0;
 }
 
 // TODO #2

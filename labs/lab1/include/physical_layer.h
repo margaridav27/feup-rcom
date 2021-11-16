@@ -13,14 +13,11 @@ typedef struct {
   char frame[MAX_SIZE];
 } link_layer_t;
 
-typedef enum { 
-  TRANSMITER, 
-  RECEIVER 
-} flag_t;
+typedef enum { TRANSMITER, RECEIVER } flag_t;
 
 int llopen(char* port, flag_t flag);
 
-int llclose ();
+int llclose();
 
 int llwrite(char* packet);
 
@@ -28,17 +25,25 @@ int llread();
 
 void setupLinkLayer();
 
-int assembleCtrlFrame(char addr, char ctrl, char** frame);
+void assembleCtrlFrame(char addr, char ctrl, char** frame);
 
 int writeCtrlFrame(char* frame);
 
 int readCtrlFrame(char* frame);
 
-int establishment();
+enum state_t validateCtrlFrame(char addr,
+                               char ctrl,
+                               char* frame,
+                               enum state_t curr_state);
 
-// int acknowledgment();
+int establishment();
 
 int termination();
 
+int packetToFrame(char* packet, char* frame);
+
+int stuffing(char* frame);
+
+int destuffing(char* frame);
 
 #endif
