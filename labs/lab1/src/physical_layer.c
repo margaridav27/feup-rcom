@@ -15,11 +15,11 @@ void setupLinkLayer() {
 }
 
 int assembleCtrlFrame(char addr, char ctrl, char** frame) {
-  frame[0] = FLAG;
+  frame[0] = FLAG_BYTE;
   frame[1] = ADDR_CR_RE;
   frame[2] = ctrl;
   frame[3] = BCC1(addr, ctrl);
-  frame[4] = FLAG;
+  frame[4] = FLAG_BYTE;
 }
 
 int writeCtrlFrame(char* frame) {
@@ -59,7 +59,7 @@ int establishment() {
     /* validate UA frame sent by receiver */
     switch (msg_state) {
       case START:
-        if (response[0] == FLAG)
+        if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         break;
       case FLAG_RCV:
@@ -71,7 +71,7 @@ int establishment() {
       case A_RCV:
         if (response[0] == CTRL_UA)
           msg_state = C_RCV;
-        else if (response[0] == FLAG)
+        else if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
@@ -79,13 +79,13 @@ int establishment() {
       case C_RCV:
         if (response[0] == BCC1(ADDR_CE_RR, CTRL_UA))
           msg_state = BCC_OK;
-        else if (response[0] == FLAG)
+        else if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
         break;
       case BCC_OK:
-        if (response[0] == FLAG)
+        if (response[0] == FLAG_BYTE)
           msg_state = STOP;
         else
           msg_state = START;
@@ -121,7 +121,7 @@ int acknowledgment() {
     /* validate SET frame sent by emitter */
     switch (msg_state) {
       case START:
-        if (set_cmd[0] == FLAG)
+        if (set_cmd[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         break;
       case FLAG_RCV:
@@ -133,7 +133,7 @@ int acknowledgment() {
       case A_RCV:
         if (set_cmd[0] == CTRL_SET)
           msg_state = C_RCV;
-        else if (set_cmd[0] == FLAG)
+        else if (set_cmd[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
@@ -141,13 +141,13 @@ int acknowledgment() {
       case C_RCV:
         if (set_cmd[0] == BCC1(ADDR_CE_RR, CTRL_SET))
           msg_state = BCC_OK;
-        else if (set_cmd[0] == FLAG)
+        else if (set_cmd[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
         break;
       case BCC_OK:
-        if (set_cmd[0] == FLAG)
+        if (set_cmd[0] == FLAG_BYTE)
           msg_state = STOP;
         else
           msg_state = START;
@@ -161,11 +161,11 @@ int acknowledgment() {
   printf("\n");
 
   /* assemble UA frame */
-  ua_cmd[0] = FLAG;
+  ua_cmd[0] = FLAG_BYTE;
   ua_cmd[1] = ADDR_CR_RE;
   ua_cmd[2] = CTRL_UA;
   ua_cmd[3] = BCC1(ADDR_CR_RE, CTRL_UA);
-  ua_cmd[4] = FLAG;
+  ua_cmd[4] = FLAG_BYTE;
 
   /* send UA frame to emitter */
   num_bytes_written = writeCtrlFrame(ua_cmd);
@@ -204,7 +204,7 @@ int termination() {
 
     switch (msg_state) {
       case START:
-        if (response[0] == FLAG)
+        if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         break;
       case FLAG_RCV:
@@ -216,7 +216,7 @@ int termination() {
       case A_RCV:
         if (response[0] == CTRL_DISC)
           msg_state = C_RCV;
-        else if (response[0] == FLAG)
+        else if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
@@ -224,13 +224,13 @@ int termination() {
       case C_RCV:
         if (response[0] == BCC1(ADDR_CE_RR, CTRL_DISC))
           msg_state = BCC_OK;
-        else if (response[0] == FLAG)
+        else if (response[0] == FLAG_BYTE)
           msg_state = FLAG_RCV;
         else
           msg_state = START;
         break;
       case BCC_OK:
-        if (response[0] == FLAG)
+        if (response[0] == FLAG_BYTE)
           msg_state = STOP;
         else
           msg_state = START;

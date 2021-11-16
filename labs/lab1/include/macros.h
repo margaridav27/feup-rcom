@@ -3,7 +3,10 @@
 
 #define BIT(n) (0x01 << (n))
 
-#define FLAG 0x0d
+#define FLAG_BYTE 0x7e
+#define ESCAPE_BYTE 0x7d
+#define FLAG_STUFFING_BYTE 0x5e
+#define ESCAPE_STUFFING_BYTE 0x5d
 
 #define ADDR_CE_RR                                       \
   0x03 /* commands sent by emitter and responses sent by \
