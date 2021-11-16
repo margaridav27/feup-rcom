@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
 
   setupAlarm();
 
-  communicate(argv[1], argv[2]);
+  emmit(argv[1], argv[2]);
 
   return 0;
 };

@@ -5,12 +5,26 @@
 
 typedef struct {
   char port[20];
+  int fd;
   int baud_rate;
   unsigned int sequence_num;
   unsigned int timeout;
   unsigned int num_transmissions;
   char frame[MAX_SIZE];
 } link_layer_t;
+
+typedef enum { 
+  TRANSMITER, 
+  RECEIVER 
+} flag_t;
+
+int llopen(char* port, flag_t flag);
+
+int llclose ();
+
+int llwrite(char* packet);
+
+int llread();
 
 void setupLinkLayer();
 
@@ -22,10 +36,9 @@ int readCtrlFrame(char* frame);
 
 int establishment();
 
-int acknowledgment();
+// int acknowledgment();
 
 int termination();
 
-int setPhysicalLayer(char* port);
 
 #endif

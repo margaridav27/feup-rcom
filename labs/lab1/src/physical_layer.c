@@ -1,6 +1,7 @@
 #include "../include/physical_layer.h"
+#include "../include/physical_layer_macros.h"
+
 #include <fcntl.h>
-#include "../include/macros.h"
 
 enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP };
 
@@ -30,6 +31,7 @@ int readCtrlFrame(char* frame) {
   read(link_layer.port, frame, 1);
 }
 
+//TODO #6 
 int establishment() {
   enum state_t msg_state = START;
 
@@ -105,6 +107,7 @@ int establishment() {
   }
 }
 
+/*
 int acknowledgment() {
   enum state_t msg_state = START;
 
@@ -112,13 +115,13 @@ int acknowledgment() {
   char set_cmd[1], ua_cmd[5];
 
   while (msg_state != STOP) {
-    /* read SET frame sent by emitter */
+    /* read SET frame sent by emitter 
     num_bytes_read = readCtrlFrame(set_cmd);
 
     if (num_bytes_read > 0)
       printf("%x \n", set_cmd[0]);
 
-    /* validate SET frame sent by emitter */
+    /* validate SET frame sent by emitter 
     switch (msg_state) {
       case START:
         if (set_cmd[0] == FLAG)
@@ -160,19 +163,21 @@ int acknowledgment() {
 
   printf("\n");
 
-  /* assemble UA frame */
+  /* assemble UA frame 
   ua_cmd[0] = FLAG;
   ua_cmd[1] = ADDR_CR_RE;
   ua_cmd[2] = CTRL_UA;
   ua_cmd[3] = BCC1(ADDR_CR_RE, CTRL_UA);
   ua_cmd[4] = FLAG;
 
-  /* send UA frame to emitter */
+  /* send UA frame to emitter 
   num_bytes_written = writeCtrlFrame(ua_cmd);
   printf("Sent to emissor: %x %x %x %x %x (%d bytes)\n", ua_cmd[0], ua_cmd[1],
          ua_cmd[2], ua_cmd[3], ua_cmd[4], num_bytes_written);
 }
+*/
 
+//TODO #7
 int termination() {
   /* end communication by
     1. sending DISC ctrl frame
@@ -250,14 +255,12 @@ int termination() {
   printf("Sent final UA to receiver: %x %x %x %x %x (%d bytes)\n", set_cmd[0],
          set_cmd[1], set_cmd[2], set_cmd[3], set_cmd[4], num_bytes_written);
 
-  resetSerialPort();
-
-  close(link_layer.port);
 };
 
-int setPhysicalLayer(char* port) {
-  int fd_port = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
-  if (fd_port < 0) {
+int llopen(char* port, flag_t flag) {
+
+  link_layer.fd = open(port, (O_RDWR && flag)| O_NOCTTY | O_NONBLOCK | (O_WRONLY && flag));
+  if (link_layer.fd < 0) {
     perror("open port");
     return -1;
   }
@@ -269,6 +272,7 @@ int setPhysicalLayer(char* port) {
   establishment();
 }
 
+/*
 int receive(char* filename, char* port) {
   llopen(filename, port);
 
@@ -286,4 +290,33 @@ int receive(char* filename, char* port) {
 
   llclose(filename, port);
   return;
+}
+*/
+
+int llclose () {
+  termination();
+
+  resetSerialPort();
+  close(link_layer.fd);
+}
+
+
+//TODO #8 
+int packetToFrame (char* packet, char* frame) {
+ // frame = FLAG | campo de endereçamento | campo de controlo | BCC1 | DADOS | BCC2 | FLAG;
+ // pacote = Campo de controlo (1- dados) | N numero de sequencia modulo 255 | L2 | L1 | P1 | ... | PK;  K = 256* L2 + L1
+  return 0;
+}
+
+//TODO #9
+int stuffing (char* frame) {
+  return 0;
+}
+
+//TODO
+int llwrite(char* packet) {
+  
+  // create frame
+  // stuffing
+  // write frame
 }
