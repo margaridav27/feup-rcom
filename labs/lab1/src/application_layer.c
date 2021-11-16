@@ -23,7 +23,9 @@ application_layer_t application_layer;
 
 int init(char* file_name, char* port) {
   application_layer.file_name = file_name;
-  application_layer.file_descriptor = open(file_name, O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
+  application_layer.file_descriptor =
+      open(file_name,
+           O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
 
   if (application_layer.file_descriptor < 0) {
     perror("open file");
@@ -116,9 +118,11 @@ int emmit(char* file_name, char* port) {
   createCtrlPacket(CTRL_START, packet);
   llwrite(packet);
 
+  char seq_num = 0;
   while (read(application_layer.file_descriptor, buf,
               application_layer.file_portion) > 0) {
-    createDataPacket(buf, packet);
+    createDataPacket(buf, seq_num, packet);
+    seq_num++;
 
     llwrite(packet);
   }
