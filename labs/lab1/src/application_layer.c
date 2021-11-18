@@ -29,7 +29,7 @@ int init(char* filename, char* port) {
     return -1;
   }
 
-  llopen(port, TRANSMITER);
+  llopen(port, application_layer.status);
 }
 
 int createCtrlPacket(char ctrl, char* packet) {
@@ -76,10 +76,9 @@ int createDataPacket() {
 }
 
 // TODO #2
-int emmit(char* filename, char* port) {
+int communicate(char* filename, char* port) {
   init(filename, port);
 
-  // get size file
   unsigned char buf[application_layer.filePortion], packet[application_layer.filePortion * 2];
 
   createCtrlPacket(CTRL_START, packet);
