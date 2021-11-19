@@ -3,6 +3,8 @@
 
 #define MAX_SIZE 100
 
+typedef enum { TRANSMITER, RECEIVER } flag_t;
+
 typedef struct {
   char port[20];
   int fd;
@@ -11,34 +13,44 @@ typedef struct {
   unsigned int timeout;
   unsigned int num_transmissions;
   char frame[MAX_SIZE];
+  flag_t status;
 } link_layer_t;
-
-typedef enum { 
-  TRANSMITER, 
-  RECEIVER 
-} flag_t;
 
 int llopen(char* port, flag_t flag);
 
-int llclose ();
+int llclose();
 
-int llwrite(char* packet);
+int llwrite(unsigned char* packet);
 
 int llread();
 
 void setupLinkLayer();
 
-int assembleCtrlFrame(char addr, char ctrl, char** frame);
+void assembleCtrlFrame(unsigned char addr,
+                       unsigned char ctrl,
+                       unsigned char* frame);
 
-int writeCtrlFrame(char* frame);
+int writeCtrlFrame(unsigned char* frame);
 
-int readCtrlFrame(char* frame);
+int readCtrlFrame(unsigned char* frame);
 
-int establishment();
+enum state_t validateCtrlFrame(unsigned char addr,
+                               unsigned char ctrl,
+                               unsigned char* frame,
+                               enum state_t curr_state);
 
-// int acknowledgment();
+int establishmentTransmitter();
 
-int termination();
+int establishmentReceiver();
 
+int terminationTransmitter();
+
+int terminationReceiver();
+
+int packetToFrame(unsigned char* packet, unsigned char* frame);
+
+int stuffing(unsigned char* frame);
+
+int destuffing(unsigned char* frame);
 
 #endif

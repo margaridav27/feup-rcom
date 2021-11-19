@@ -8,18 +8,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <termios.h>
+#include <strings.h>
 
 extern link_layer_t link_layer;
 struct termios oldtio;
 
-int setupSerialPort(int fileDescriptor) {
+int setupSerialPort() {
   struct termios newtio;
 
   /* open serial port device for reading and writing and not as controlling tty
   because we don't want to get killed if linenoise sends CTRL-C */
 
   /* save current port settings */
-  if (tcgetattr(link_layer.port, &oldtio) == -1) {
+  if (tcgetattr(link_layer.fd, &oldtio) == -1) {
     perror("tcgetattr");
     return -1;
   }
@@ -32,9 +33,9 @@ int setupSerialPort(int fileDescriptor) {
   newtio.c_cc[VTIME] = 0; /* inter-character timer unused */
   newtio.c_cc[VMIN] = 1;  /* blocking read until x chars received */
 
-  tcflush(fileDescriptor, TCIOFLUSH);
+  tcflush(link_layer.fd, TCIOFLUSH);
 
-  if (tcsetattr(link_layer.port, TCSANOW, &newtio) == -1) {
+  if (tcsetattr(link_layer.fd, TCSANOW, &newtio) == -1) {
     perror("tcsetattr");
     return -1;
   }
@@ -44,7 +45,7 @@ int setupSerialPort(int fileDescriptor) {
 }
 
 int resetSerialPort() {
-  if (tcsetattr(link_layer.port, TCSANOW, &oldtio) == -1) {
+  if (tcsetattr(link_layer.fd, TCSANOW, &oldtio) == -1) {
     perror("tcsetattr");
     return -1;
   }

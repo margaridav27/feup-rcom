@@ -7,13 +7,13 @@ BIN := bin/
 SRC := src/
 INCLUDE := include/
 
-all:  emitter receiver
+all:  transmitter receiver
 
-emitter: ${INCLUDE}alarm.h ${SRC}emitter.c 
-	$(CC) $(CFLAGS) ${BIN}emitter ${SRC}alarm.c ${SRC}emitter.c
+transmitter: ${INCLUDE}alarm.h ${INCLUDE}application_layer.h ${INCLUDE}physical_layer.h ${INCLUDE}serial_port.h ${SRC}transmitter.c 
+	$(CC) $(CFLAGS) ${BIN}transmitter  ${SRC}alarm.c ${SRC}application_layer.c ${SRC}physical_layer.c ${SRC}serial_port.c ${SRC}transmitter.c
 
-receiver: ${SRC}receiver.c 
-	$(CC) $(CFLAGS) ${BIN}receiver ${SRC}receiver.c
+receiver: ${INCLUDE}alarm.h ${INCLUDE}application_layer.h ${INCLUDE}physical_layer.h ${INCLUDE}serial_port.h  ${SRC}receiver.c 
+	$(CC) $(CFLAGS) ${BIN}receiver  ${SRC}alarm.c ${SRC}application_layer.c ${SRC}physical_layer.c ${SRC}serial_port.c ${SRC}receiver.c
 
 clean:
-	rm -f receiver emissor 
+	rm -f receiver transmitter 

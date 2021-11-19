@@ -3,12 +3,16 @@
 
 int init(char* filename, char* port);
 
-int createCtrlPacket(char ctrl, char* packet);
+void setID(int id);
 
-int createDataPacket();
+int createCtrlPacket(unsigned char ctrl, unsigned char* packet);
 
-int emmit(char* filename, char* port);
+int createDataPacket(unsigned char* data,
+                     unsigned char seq_num,
+                     unsigned char* packet);
 
-void end(char* filename, char* port);
+int communicate(char* filename, char* port);
+
+void end(unsigned char* filename, unsigned char* port);
 
 #endif
