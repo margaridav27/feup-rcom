@@ -1,0 +1,19 @@
+#c compiler
+CC := cc
+
+CFLAGS := -Wall -o
+
+BIN := bin/
+SRC := src/
+INCLUDE := include/
+
+all:  transmitter receiver
+
+transmitter: ${INCLUDE}alarm.h ${INCLUDE}application_layer.h ${INCLUDE}physical_layer.h ${INCLUDE}serial_port.h ${SRC}transmitter.c 
+	$(CC) $(CFLAGS) ${BIN}transmitter  ${SRC}alarm.c ${SRC}application_layer.c ${SRC}physical_layer.c ${SRC}serial_port.c ${SRC}transmitter.c
+
+receiver: ${INCLUDE}alarm.h ${INCLUDE}application_layer.h ${INCLUDE}physical_layer.h ${INCLUDE}serial_port.h  ${SRC}receiver.c 
+	$(CC) $(CFLAGS) ${BIN}receiver  ${SRC}alarm.c ${SRC}application_layer.c ${SRC}physical_layer.c ${SRC}serial_port.c ${SRC}receiver.c
+
+clean:
+	rm -f receiver transmitter 
