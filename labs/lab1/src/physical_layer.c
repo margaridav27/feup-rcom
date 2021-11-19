@@ -192,6 +192,8 @@ int establishmentReceiver() {
   if (msg_state != STOP) {
     printf("Receiver did not send DISC frame back to transmitter.\n\n");
     return -1;
+  } else {
+    printf("SET frame received from transmitter.\n\n");
   }
 
   assembleCtrlFrame(ADDR_CR_RE, CTRL_UA, ua_cmd);
