@@ -10,7 +10,6 @@ void setupAlarm() {
 }
 
 void handler() {
-  printf("alarme # %d\n", try);
   flag = 1;
   try++;
 }

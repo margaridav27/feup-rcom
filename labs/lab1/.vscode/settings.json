@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "physical_layer_macros.h": "c",
+        "array": "c",
+        "string_view": "c",
+        "initializer_list": "c",
+        "utility": "c",
+        "valarray": "c",
+        "serial_port.h": "c"
+    }
+}
