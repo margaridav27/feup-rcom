@@ -20,15 +20,15 @@ int llopen(char* port, flag_t flag);
 
 int llclose();
 
-unsigned char getBCC2(unsigned char* data);
+unsigned char getBCC2(unsigned char* data, int packet_sz);
 
-int packetToFrame(unsigned char* packet, unsigned char* frame);
+int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz);
 
-int stuffing(unsigned char* frame);
+int stuffing(unsigned char* frame, int frame_sz);
 
 int destuffing(unsigned char* frame);
 
-int llwrite(unsigned char* packet);
+int llwrite(unsigned char* packet, int packet_sz);
 
 int llread(unsigned char* buffer);
 
@@ -38,7 +38,7 @@ void assembleCtrlFrame(unsigned char addr,
                        unsigned char ctrl,
                        unsigned char* frame);
 
-int writeFrame(unsigned char* frame);
+int writeFrame(unsigned char* frame, int sz);
 
 int readFrame(unsigned char* frame, int sz);
 

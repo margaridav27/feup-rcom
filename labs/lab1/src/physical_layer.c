@@ -54,36 +54,33 @@ int llclose() {
   return 0;
 }
 
-unsigned char getBCC2(unsigned char* data) {
+unsigned char getBCC2(unsigned char* data, int packet_sz) {
   unsigned char BCC2 = data[0];
-  for (int i = 1; i < sizeof(data); i++) {
-    BCC2 = BCC2 ^ data[i];
+  for (int i = 1; i < packet_sz; i++) {
+    BCC2 ^= data[i];
   }
   return BCC2;
 }
 
-int packetToFrame(unsigned char* packet, unsigned char* frame) {
-  size_t packet_sz = sizeof(*packet);
-  frame = malloc(packet_sz * sizeof(unsigned char));
+int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz) {
   frame[0] = FLAG_BYTE;
   frame[1] = ADDR_CE_RR;
   frame[2] = link_layer.sequence_num;
   frame[3] = BCC1(frame[1], frame[2]);
-  memcpy(frame[4], packet, packet_sz);
 
-  unsigned char BCC2 = getBCC2(packet);
+  memcpy(frame + 4, packet, packet_sz);
 
-  frame[4 + packet_sz] = BCC2;
+  frame[4 + packet_sz] = getBCC2(packet, packet_sz);
   frame[5 + packet_sz] = FLAG_BYTE;
+
   return 0;
 }
 
-int stuffing(unsigned char* frame) {
-  size_t frame_sz = sizeof(*frame);
-  char* stuffed_frame = malloc(2 * frame_sz);
+int stuffing(unsigned char* frame, int frame_sz) {
+  unsigned char* stuffed_frame = malloc(2 * frame_sz);
   int stuffed_frame_ix = 0;
 
-  for (int i = 0; i < frame_sz; i++) {
+  for (int i = 4; i < frame_sz - 2; i++) {
     if (frame[i] == FLAG_BYTE) {
       stuffed_frame[stuffed_frame_ix] = ESCAPE_BYTE;
       stuffed_frame_ix++;
@@ -98,7 +95,7 @@ int stuffing(unsigned char* frame) {
     stuffed_frame_ix++;
   }
 
-  memcpy(frame, stuffed_frame, sizeof(*stuffed_frame));
+  memcpy(frame + 4, stuffed_frame, stuffed_frame_ix);
 }
 
 int destuffing(unsigned char* frame) {
@@ -184,7 +181,7 @@ enum state_t validateIFrame(unsigned char addr,
       if (frame[0] == FLAG_BYTE)
         next_state = FLAG_RCV;
       else
-        return -1;
+        next_state = ERROR;
       break;
     case FLAG_RCV:
       if (frame[0] == addr)
@@ -193,13 +190,13 @@ enum state_t validateIFrame(unsigned char addr,
         next_state = ERROR;
       break;
     case A_RCV:
-      if (frame[0] == BIT(7) & link_layer.sequence_num)
+      if (frame[0] == (BIT(7) & link_layer.sequence_num)) {
         next_state = C_RCV;
-      else
+      } else
         next_state = ERROR;
       break;
     case C_RCV:
-      if (frame[0] == BCC1(addr, link_layer.sequence_num & BIT(7)))
+      if (frame[0] == BCC1(addr, link_layer.sequence_num))
         next_state = BCC_OK;
       else
         next_state = ERROR;
@@ -212,12 +209,15 @@ enum state_t validateIFrame(unsigned char addr,
   return next_state;
 }
 
-int llwrite(unsigned char* packet) {
-  char* frame;
-  packetToFrame(packet, frame);
-  stuffing(frame);
-  writeFrame(frame);
+int llwrite(unsigned char* packet, int packet_sz) {
+  int frame_sz = 6 + packet_sz;
+  char* frame = malloc(2 * frame_sz);
 
+  packetToFrame(packet, frame, packet_sz);
+  stuffing(frame, frame_sz);
+
+  writeFrame(frame, frame_sz);
+  printf("I-frame sent to receiver.\n\n");
   return 0;
 }
 
@@ -228,70 +228,70 @@ int llread(unsigned char* buffer) {
 
   unsigned char i_frame_ix[1], i_frame_header[5], ctrl_frame[5];
 
+  /* read and check header validity */
   while (msg_state != BCC_OK && msg_state != ERROR) {
+    printf("%d msg state\n", msg_state);
     num_bytes_read = readFrame(i_frame_ix, 1);
+    printf("%x i frame \n", i_frame_ix[0]);
 
-    /* check header validity */
     if (num_bytes_read > 0) {
-      i_frame_header[ix] = i_frame_ix[ix++];
-      msg_state = validateIFrame(ADDR_CE_RR, i_frame_header,
-                                msg_state);
+      i_frame_header[ix++] = i_frame_ix[0];
+      msg_state = validateIFrame(ADDR_CE_RR, i_frame_ix, msg_state);
     }
   }
 
   unsigned char* i_frame_data[100];
-  ix = 0;
+  int data_ix = 0;
 
   for (;;) {
     readFrame(i_frame_ix, 1);
-    if (i_frame_ix == FLAG_BYTE)
+    printf("%x ", i_frame_ix[0]);
+    if (i_frame_ix[0] == FLAG_BYTE)
       break;
-    i_frame_data[ix] = i_frame_ix[ix++];
+    i_frame_data[data_ix++] = i_frame_ix[0];
   }
 
-    if (msg_state != BCC_OK) {
-      printf("I-frame with errors in header received from transmitter.\n\n");
-      assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
-                        ctrl_frame);
-      printf("REJ sent to transmitter.\n\n");
+  if (msg_state != BCC_OK) {
+    printf("I-frame with errors in header received from transmitter.\n\n");
+    assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
+                      ctrl_frame);
+    printf("REJ sent to transmitter.\n\n");
 
-    } else {
-      char i_frame_data[sizeof(i_frame_data)];
-      memcpy(i_frame_data, i_frame_data, sizeof(i_frame_data));
-      destuffing(i_frame_data);
-      unsigned char bcc2 = getBCC2(i_frame_data);
+  } else {
+    destuffing(i_frame_data);
+    unsigned char bcc2 = getBCC2(i_frame_data, data_ix);
 
-      /* check data validity */
-      if (bcc2 != i_frame_data[sizeof(i_frame_data)]) {
-        // has frame already been sent?
-        if (i_frame_header[3] == link_layer.sequence_num) {
-          printf("I-frame already received from transmitter.\n\n");
-          assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
-                            ctrl_frame);
-          printf("RR sent to transmitter.\n\n");
-        } else {
-          printf("I-frame with errors in data received from transmitter.\n\n");
-          assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
-                            ctrl_frame);
-          printf("REJ sent to transmitter.\n\n");
-        }
-      } else {
-        printf("I-frame received from transmitter.\n\n");
-        buffer = realloc(buffer, sizeof(i_frame_data));
-        buffer = i_frame_data;
-        link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+    /* check data validity */
+    if (bcc2 != i_frame_data[sizeof(i_frame_data)]) {
+      // has frame already been sent?
+      if (i_frame_header[2] == link_layer.sequence_num) {
+        printf("I-frame already received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
                           ctrl_frame);
         printf("RR sent to transmitter.\n\n");
+      } else {
+        printf("I-frame with errors in data received from transmitter.\n\n");
+        assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
+                          ctrl_frame);
+        printf("REJ sent to transmitter.\n\n");
       }
+    } else {
+      printf("I-frame received from transmitter.\n\n");
+      buffer = realloc(buffer, sizeof(i_frame_data));
+      buffer = i_frame_data;
+      link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+      assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
+                        ctrl_frame);
+      printf("RR sent to transmitter.\n\n");
     }
+  }
 
-  writeFrame(ctrl_frame);
+  writeFrame(ctrl_frame, 5);
 }
 
 void setupLinkLayer() {
   link_layer.baud_rate = BAUDRATE;
-  link_layer.sequence_num = 0;
+  link_layer.sequence_num = 0x00;
   link_layer.timeout = 1;
   link_layer.num_transmissions = 3;
 }
@@ -306,8 +306,8 @@ void assembleCtrlFrame(unsigned char addr,
   frame[4] = FLAG_BYTE;
 }
 
-int writeFrame(unsigned char* frame) {
-  return write(link_layer.fd, frame, sizeof(*frame));
+int writeFrame(unsigned char* frame, int sz) {
+  return write(link_layer.fd, frame, sz);
 }
 
 int readFrame(unsigned char* frame, int sz) {
@@ -326,7 +326,7 @@ int establishmentTransmitter() {
 
   while (msg_state != STOP && try < 4) {
     if (flag && msg_state != STOP) {
-      num_bytes_written = writeFrame(set);
+      num_bytes_written = writeFrame(set, sizeof(set));
 
       printf("Try SET #%d: %x %x %x %x %x (%d bytes written)\n\n", try, set[0],
              set[1], set[2], set[3], set[4], num_bytes_written);
@@ -337,7 +337,7 @@ int establishmentTransmitter() {
 
     flag = 0;
 
-    num_bytes_read = readFrame(response,1);
+    num_bytes_read = readFrame(response, 1);
     if (num_bytes_read > 0) {
       msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_UA, response, msg_state);
     }
@@ -359,6 +359,7 @@ int establishmentReceiver() {
   unsigned char set_cmd[1], ua_cmd[5];
 
   while (msg_state != STOP) {
+    printf("reading\n");
     num_bytes_read = readFrame(set_cmd, 1);
 
     if (num_bytes_read > 0)
@@ -374,7 +375,7 @@ int establishmentReceiver() {
 
   assembleCtrlFrame(ADDR_CR_RE, CTRL_UA, ua_cmd);
 
-  num_bytes_written = writeFrame(ua_cmd);
+  num_bytes_written = writeFrame(ua_cmd, sizeof(ua_cmd));
   printf("Sent UA to transmitter: %x %x %x %x %x (%d bytes written)\n\n",
          ua_cmd[0], ua_cmd[1], ua_cmd[2], ua_cmd[3], ua_cmd[4],
          num_bytes_written);
@@ -393,7 +394,7 @@ int terminationTransmitter() {
 
   while (msg_state != STOP && try < 4) {
     if (flag) {
-      num_bytes_written = writeFrame(disc);
+      num_bytes_written = writeFrame(disc, sizeof(disc));
 
       printf("Try DISC #%d: %x %x %x %x %x (%d bytes written)\n\n", try,
              disc[0], disc[1], disc[2], disc[3], disc[4], num_bytes_written);
@@ -404,7 +405,7 @@ int terminationTransmitter() {
 
     flag = 0;
 
-    num_bytes_read = readFrame(response,1);
+    num_bytes_read = readFrame(response, 1);
     if (num_bytes_read > 0) {
       msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_DISC, response, msg_state);
     }
@@ -419,7 +420,7 @@ int terminationTransmitter() {
 
   assembleCtrlFrame(ADDR_CE_RR, CTRL_UA, ua);
 
-  num_bytes_written = writeFrame(ua);
+  num_bytes_written = writeFrame(ua, sizeof(ua));
 
   printf("Sent final UA to transmitter: %x %x %x %x %x (%d bytes written)\n\n",
          ua[0], ua[1], ua[2], ua[3], ua[4], num_bytes_written);
@@ -434,7 +435,7 @@ int terminationReceiver() {
   unsigned char receive_cmd[1], disc_cmd[5];
 
   while (msg_state != STOP) {
-    num_bytes_read = readFrame(receive_cmd,1);
+    num_bytes_read = readFrame(receive_cmd, 1);
 
     if (num_bytes_read > 0) {
       msg_state =
@@ -451,7 +452,7 @@ int terminationReceiver() {
 
   assembleCtrlFrame(ADDR_CR_RE, CTRL_DISC, disc_cmd);
 
-  num_bytes_written = writeFrame(disc_cmd);
+  num_bytes_written = writeFrame(disc_cmd, sizeof(disc_cmd));
   printf("Sent DISC back to emissor: %x %x %x %x %x (%d bytes written)\n\n",
          disc_cmd[0], disc_cmd[1], disc_cmd[2], disc_cmd[3], disc_cmd[4],
          num_bytes_written);
@@ -459,7 +460,7 @@ int terminationReceiver() {
   msg_state = START;
 
   while (msg_state != STOP) {
-    num_bytes_read = readFrame(receive_cmd,1);
+    num_bytes_read = readFrame(receive_cmd, 1);
 
     if (num_bytes_read > 0)
       msg_state =

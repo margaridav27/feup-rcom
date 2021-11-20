@@ -8,6 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <math.h>
 
 typedef struct {
   unsigned char type;
@@ -47,7 +48,7 @@ int init(char* file_name, char* port) {
   return 0;
 }
 
-int createCtrlPacket(unsigned char ctrl, unsigned char* packet) {
+int sendCtrlPacket(unsigned char ctrl, unsigned char* packet) {
   /* assemble file size ctrl packet parameter */
   struct stat st;
   stat(application_layer.file_name, &st);
@@ -55,7 +56,7 @@ int createCtrlPacket(unsigned char ctrl, unsigned char* packet) {
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
-      .length = OCTET_SIZE % fsize + 1,
+      .length = (int)ceil((float)fsize /255),
       .value = malloc(file_size_param.length * sizeof(unsigned char))};
 
   if (file_size_param.value == NULL) {
@@ -73,31 +74,24 @@ int createCtrlPacket(unsigned char ctrl, unsigned char* packet) {
   /* assemble file size ctrl packet parameter */
   size_t fname = strlen(application_layer.file_name) + 1;
 
+  if (fname > 255)
+    perror("file_name too big");
+
   ctrl_packet_parameter_t file_name_param = {
       .type = PACKET_DATA_FILE_NAME,
-      .length = OCTET_SIZE % fname + 1,
-      .value = malloc(file_name_param.length * sizeof(unsigned char))};
+      .length = (unsigned char)fname,
+      .value = malloc(fname * sizeof(unsigned char))};
 
   if (file_name_param.value == NULL) {
     perror("file_name_param malloc");
     return -1;
   }
 
-  nth_byte = file_name_param.length - 1;  // starts at msb
-  for (int i = 0; i < file_name_param.length; i++) {
-    file_name_param.value[i] = application_layer.file_name[nth_byte - i];
-    nth_byte--;
-  }
+  memcpy(file_name_param.value, application_layer.file_name,
+         fname);
 
-  size_t file_size_param_param_sz = sizeof(file_size_param.type) +
-                                    sizeof(file_size_param.length) +
-                                    sizeof(file_size_param.value);
-
-  size_t file_name_param_sz = sizeof(file_name_param.type) +
-                              sizeof(file_name_param.length) +
-                              sizeof(file_name_param.value);
-
-  packet = malloc(1 + file_size_param_param_sz + file_name_param_sz);
+  int packet_sz = 1 + 2 + 2 + fname + file_size_param.length;
+  packet = malloc(packet_sz);
 
   if (packet == NULL) {
     perror("ctrl packet malloc");
@@ -120,10 +114,10 @@ int createCtrlPacket(unsigned char ctrl, unsigned char* packet) {
   memcpy(packet + PACKET_CTRL_V1_IX + file_size_param.length + 2,
          file_name_param.value, file_name_param.length);
 
-  return 0;
+  return llwrite(packet, packet_sz);
 }
 
-int createDataPacket(unsigned char* data,
+int sendDataPacket(unsigned char* data,
                      unsigned char seq_num,
                      unsigned char* packet) {
   unsigned char data_size = sizeof(data);
@@ -140,6 +134,7 @@ int createDataPacket(unsigned char* data,
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
+  llwrite(packet, 4 + data_size);
   return 0;
 }
 
@@ -151,7 +146,7 @@ void setID(int id) {
   }
 }
 
-int checkCtrlPacket(char* packet) {
+int checkCtrlPacket(unsigned char* packet) {
   if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END || packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
     return 1;
 
@@ -184,23 +179,20 @@ int communicate(char* port, char* file_name) {
 
   if (application_layer.status == TRANSMITER) {
     // get size file
-    unsigned char buf[application_layer.max_size_read],
-        packet[application_layer.max_size_read * 2];
+    unsigned char buf[application_layer.max_size_read];
+    unsigned char* packet;
 
-    createCtrlPacket(PACKET_CTRL_START, packet);
-    llwrite(packet);
+    sendCtrlPacket(PACKET_CTRL_START, packet);
 
     unsigned char seq_num = 0;
     while (read(application_layer.file_descriptor, buf,
                 application_layer.max_size_read) > 0) {
-      createDataPacket(buf, seq_num, packet);
+      sendDataPacket(buf, seq_num, packet);
       seq_num++;
-
-      llwrite(packet);
     }
 
-    createCtrlPacket(PACKET_CTRL_END, packet);
-    llwrite(packet);
+    sleep(9);
+    sendCtrlPacket(PACKET_CTRL_END, packet);
   } else {
     char* packet;
     for (;;) {
@@ -211,8 +203,8 @@ int communicate(char* port, char* file_name) {
         continue;
       else if (ctrl_byte == PACKET_CTRL_END)
         break;
-      else
-        writeToFile(packet);
+      
+      writeToFile(packet);
     }
   }
 
