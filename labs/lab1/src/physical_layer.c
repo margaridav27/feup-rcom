@@ -17,7 +17,7 @@ int llopen(char* port, flag_t flag) {
   link_layer.status = flag;
 
   if (link_layer.status == TRANSMITER) {
-    link_layer.fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    link_layer.fd = open(port, O_RDWR | O_NOCTTY );
     if (link_layer.fd < 0) {
       perror("llopen");
       return -1;
@@ -215,9 +215,26 @@ int llwrite(unsigned char* packet, int packet_sz) {
   stuffing(frame, frame_sz);
 
   writeFrame(frame, frame_sz);
+  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   printf("I-frame sent to receiver.\n\n");
   free(packet);
-  return 0;
+
+
+  int num_bytes_read = 0;
+  unsigned char res[5];
+
+  while(num_bytes_read != 5) {
+    num_bytes_read = readFrame(res, 5);
+  }
+
+  unsigned char RR = CTRL_RR(link_layer.sequence_num);
+
+  if ((res[2] == RR)) {
+    return 0;
+  }
+
+  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+  return -1;
 }
 
 int llread(unsigned char* buffer) {

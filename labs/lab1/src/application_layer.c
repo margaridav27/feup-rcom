@@ -135,7 +135,9 @@ int sendDataPacket(unsigned char* data,
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
-  llwrite(packet, 4 + data_size);
+  while(llwrite(packet, 4 + data_size) != 0) {
+    printf("Re-sent I-frame.\n");
+  };
   return 0;
 }
 
@@ -192,8 +194,8 @@ int communicate(char* port, char* file_name) {
       sendDataPacket(buf, seq_num);
       seq_num++;
     }
-
     sleep(9);
+
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
     unsigned char* packet = malloc(105);
