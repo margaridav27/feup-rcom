@@ -5,11 +5,10 @@ int init(char* filename, char* port);
 
 void setID(int id);
 
-int createCtrlPacket(unsigned char ctrl, unsigned char* packet);
+int sendCtrlPacket(unsigned char ctrl);
 
-int createDataPacket(unsigned char* data,
-                     unsigned char seq_num,
-                     unsigned char* packet);
+int sendDataPacket(unsigned char* data,
+                     unsigned char seq_num);
 
 int communicate(char* filename, char* port);
 

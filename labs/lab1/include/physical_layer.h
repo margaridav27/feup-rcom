@@ -24,9 +24,9 @@ unsigned char getBCC2(unsigned char* data, int packet_sz);
 
 int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz);
 
-int stuffing(unsigned char* frame, int frame_sz);
+void stuffing(unsigned char* frame, int frame_sz);
 
-int destuffing(unsigned char* frame);
+void destuffing(unsigned char* frame, int frame_sz);
 
 int llwrite(unsigned char* packet, int packet_sz);
 

@@ -17,7 +17,7 @@ typedef struct {
 } ctrl_packet_parameter_t;
 
 typedef struct {
-  unsigned char* file_name;
+  char* file_name;
   int file_descriptor;
   int status;
   unsigned char* file_size;
@@ -27,8 +27,9 @@ typedef struct {
 application_layer_t application_layer;
 
 int openFile() {
+  const char* filename = application_layer.file_name;
   application_layer.file_descriptor =
-      open(application_layer.file_name,
+      open(filename,
            O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
 
   if (application_layer.file_descriptor < 0) {
@@ -48,11 +49,12 @@ int init(char* file_name, char* port) {
   return 0;
 }
 
-int sendCtrlPacket(unsigned char ctrl, unsigned char* packet) {
+int sendCtrlPacket(unsigned char ctrl) {
   /* assemble file size ctrl packet parameter */
   struct stat st;
   stat(application_layer.file_name, &st);
   off_t fsize = st.st_size;
+  unsigned char* packet;
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
@@ -118,11 +120,10 @@ int sendCtrlPacket(unsigned char ctrl, unsigned char* packet) {
 }
 
 int sendDataPacket(unsigned char* data,
-                     unsigned char seq_num,
-                     unsigned char* packet) {
+                     unsigned char seq_num) {
   unsigned char data_size = sizeof(data);
+  unsigned char packet[4 + data_size];
 
-  packet = malloc(4 + data_size);
   if (packet == NULL) {
     perror("data packet malloc");
     return -1;
@@ -147,7 +148,9 @@ void setID(int id) {
 }
 
 int checkCtrlPacket(unsigned char* packet) {
-  if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END || packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
+
+  if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END &&
+      packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
     return 1;
 
   if (packet[PACKET_CTRL_IX] == PACKET_CTRL_END)
@@ -157,7 +160,7 @@ int checkCtrlPacket(unsigned char* packet) {
   application_layer.file_size = malloc(L1);
   memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, L1);
   int L2 = packet[PACKET_CTRL_V1_IX + L1 + 2];
-  application_layer.file_size = malloc(L2);
+  application_layer.file_name = malloc(L2);
   memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2,L2);
   openFile();
 
@@ -171,7 +174,7 @@ int writeToFile(unsigned char* packet) {
   unsigned char file_data[k];
 
   memcpy(file_data, packet + PACKET_DATA_START_IX, k);
-  write(application_layer.file_name, file_data, sizeof(file_data));
+  return write(application_layer.file_descriptor, file_data, sizeof(file_data));
 }
 
 int communicate(char* port, char* file_name) {
@@ -180,25 +183,25 @@ int communicate(char* port, char* file_name) {
   if (application_layer.status == TRANSMITER) {
     // get size file
     unsigned char buf[application_layer.max_size_read];
-    unsigned char* packet;
 
-    sendCtrlPacket(PACKET_CTRL_START, packet);
+    sendCtrlPacket(PACKET_CTRL_START);
 
     unsigned char seq_num = 0;
     while (read(application_layer.file_descriptor, buf,
                 application_layer.max_size_read) > 0) {
-      sendDataPacket(buf, seq_num, packet);
+      sendDataPacket(buf, seq_num);
       seq_num++;
     }
 
     sleep(9);
-    sendCtrlPacket(PACKET_CTRL_END, packet);
+    sendCtrlPacket(PACKET_CTRL_END);
   } else {
-    char* packet;
+    unsigned char* packet = malloc(105);
     for (;;) {
       llread(packet);
+
       int ctrl_byte = checkCtrlPacket(packet);
-      
+
       if (ctrl_byte == PACKET_CTRL_START)
         continue;
       else if (ctrl_byte == PACKET_CTRL_END)

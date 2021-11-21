@@ -3,6 +3,8 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
 #include "../include/physical_layer_macros.h"
 #include "../include/serial_port.h"
 
@@ -54,11 +56,12 @@ int llclose() {
   return 0;
 }
 
-unsigned char getBCC2(unsigned char* data, int packet_sz) {
+unsigned char getBCC2(unsigned char* data, int sz) {
   unsigned char BCC2 = data[0];
-  for (int i = 1; i < packet_sz; i++) {
+  for (int i = 1; i < sz; i++) {
     BCC2 ^= data[i];
   }
+
   return BCC2;
 }
 
@@ -76,7 +79,7 @@ int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz) {
   return 0;
 }
 
-int stuffing(unsigned char* frame, int frame_sz) {
+void stuffing(unsigned char* frame, int frame_sz) {
   unsigned char* stuffed_frame = malloc(2 * frame_sz);
   int stuffed_frame_ix = 0;
 
@@ -98,16 +101,11 @@ int stuffing(unsigned char* frame, int frame_sz) {
   memcpy(frame + 4, stuffed_frame, stuffed_frame_ix);
 }
 
-int destuffing(unsigned char* frame) {
-  size_t frame_sz = sizeof(*frame);
+void destuffing(unsigned char* frame, int frame_sz) {
   char* destuffed_frame = malloc(frame_sz);
-  int destuffed_frame_ix = frame_sz, frame_ix = frame_sz - 1;
+  int destuffed_frame_ix = 0, frame_ix = 0;
 
   while (frame_ix < frame_sz) {
-    /*
-    if (frame_ix == frame_sz -1) {
-      destuffed_frame[destuffed_frame_ix] = frame[frame_ix];
-    }*/
     if ((frame[frame_ix] == ESCAPE_BYTE) &&
         (frame[frame_ix + 1] == ESCAPE_STUFFING_BYTE)) {
       destuffed_frame[destuffed_frame_ix] = ESCAPE_BYTE;
@@ -211,28 +209,27 @@ enum state_t validateIFrame(unsigned char addr,
 
 int llwrite(unsigned char* packet, int packet_sz) {
   int frame_sz = 6 + packet_sz;
-  char* frame = malloc(2 * frame_sz);
+  unsigned char* frame = malloc(2 * frame_sz);
 
   packetToFrame(packet, frame, packet_sz);
   stuffing(frame, frame_sz);
 
   writeFrame(frame, frame_sz);
   printf("I-frame sent to receiver.\n\n");
+  free(packet);
   return 0;
 }
 
 int llread(unsigned char* buffer) {
   enum state_t msg_state = START;
 
-  int num_bytes_written, num_bytes_read, ix = 0;
+  int num_bytes_read, ix = 0;
 
   unsigned char i_frame_ix[1], i_frame_header[5], ctrl_frame[5];
 
   /* read and check header validity */
   while (msg_state != BCC_OK && msg_state != ERROR) {
-    printf("%d msg state\n", msg_state);
     num_bytes_read = readFrame(i_frame_ix, 1);
-    printf("%x i frame \n", i_frame_ix[0]);
 
     if (num_bytes_read > 0) {
       i_frame_header[ix++] = i_frame_ix[0];
@@ -240,31 +237,33 @@ int llread(unsigned char* buffer) {
     }
   }
 
-  unsigned char* i_frame_data[100];
+  /* read an check data validity */
+  unsigned char i_frame_data[100];
   int data_ix = 0;
 
   for (;;) {
     readFrame(i_frame_ix, 1);
-    printf("%x ", i_frame_ix[0]);
     if (i_frame_ix[0] == FLAG_BYTE)
       break;
     i_frame_data[data_ix++] = i_frame_ix[0];
   }
+
+  unsigned char bcc2_before_destuffing = i_frame_data[data_ix - 1];
+  int frame_data_sz = data_ix - 1;  // taking bcc2 from data frame
 
   if (msg_state != BCC_OK) {
     printf("I-frame with errors in header received from transmitter.\n\n");
     assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                       ctrl_frame);
     printf("REJ sent to transmitter.\n\n");
-
   } else {
-    destuffing(i_frame_data);
-    unsigned char bcc2 = getBCC2(i_frame_data, data_ix);
+    destuffing(i_frame_data, frame_data_sz);
 
+    unsigned char bcc2_after_destuffing = getBCC2(i_frame_data, frame_data_sz);
     /* check data validity */
-    if (bcc2 != i_frame_data[sizeof(i_frame_data)]) {
+    if (bcc2_after_destuffing != bcc2_before_destuffing) {
       // has frame already been sent?
-      if (i_frame_header[2] == link_layer.sequence_num) {
+      if (i_frame_header[2] != link_layer.sequence_num) {
         printf("I-frame already received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
                           ctrl_frame);
@@ -276,17 +275,21 @@ int llread(unsigned char* buffer) {
         printf("REJ sent to transmitter.\n\n");
       }
     } else {
+
       printf("I-frame received from transmitter.\n\n");
-      buffer = realloc(buffer, sizeof(i_frame_data));
-      buffer = i_frame_data;
+      buffer = realloc(buffer, frame_data_sz);
+      memcpy(buffer, i_frame_data, frame_data_sz);
+ 
       link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
       assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
                         ctrl_frame);
+
       printf("RR sent to transmitter.\n\n");
     }
   }
 
   writeFrame(ctrl_frame, 5);
+  return frame_data_sz;
 }
 
 void setupLinkLayer() {
