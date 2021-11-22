@@ -71,11 +71,13 @@ int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz) {
   return 0;
 }
 
-void stuffing(unsigned char* frame, int frame_sz) {
-  unsigned char* stuffed_frame = malloc(2 * frame_sz);
+void stuffing(unsigned char* frame, int* frame_sz) {
+  unsigned char* stuffed_frame = malloc(2 * *frame_sz);
   int stuffed_frame_ix = 0;
+  unsigned char bcc = frame[*frame_sz - 2];
 
-  for (int i = 4; i < frame_sz - 2; i++) {
+  for (int i = 4; i < *frame_sz - 2;
+   i++) {
     if (frame[i] == FLAG_BYTE) {
       stuffed_frame[stuffed_frame_ix] = ESCAPE_BYTE;
       stuffed_frame_ix++;
@@ -91,13 +93,19 @@ void stuffing(unsigned char* frame, int frame_sz) {
   }
 
   memcpy(frame + 4, stuffed_frame, stuffed_frame_ix);
+
+  frame[4 + stuffed_frame_ix] = bcc;
+  frame[5 + stuffed_frame_ix] = FLAG_BYTE;
+
+  *frame_sz = stuffed_frame_ix + 6;
 }
 
-void destuffing(unsigned char* frame, int frame_sz) {
-  char* destuffed_frame = malloc(frame_sz);
+void destuffing(unsigned char* frame, int* frame_sz) {
+  char* destuffed_frame = malloc(*frame_sz);
   int destuffed_frame_ix = 0, frame_ix = 0;
 
-  while (frame_ix < frame_sz) {
+  destuffed_frame[destuffed_frame_ix] = ESCAPE_BYTE;
+  while (frame_ix < *frame_sz) {
     if ((frame[frame_ix] == ESCAPE_BYTE) &&
         (frame[frame_ix + 1] == ESCAPE_STUFFING_BYTE)) {
       destuffed_frame[destuffed_frame_ix] = ESCAPE_BYTE;
@@ -111,6 +119,14 @@ void destuffing(unsigned char* frame, int frame_sz) {
     }
     frame_ix++;
     destuffed_frame_ix++;
+  }
+
+  *frame_sz = destuffed_frame_ix;
+  memcpy(frame, destuffed_frame, destuffed_frame_ix);
+
+  printf("\n check THIS \n");
+  for (int i = 0; i < destuffed_frame_ix; i++) {
+    printf("%x ", frame[i]);
   }
 }
 
@@ -201,17 +217,14 @@ enum state_t validateIFrame(unsigned char addr,
 
 int llwrite(unsigned char* packet, int packet_sz) {
   int frame_sz = 6 + packet_sz;
-  printf("\n LLWRITE \n");
-  for (int i = 0; i < packet_sz; i++) {
-    printf("%x ", packet[i]);
-  }
   unsigned char* frame = malloc(2 * frame_sz);
 
   packetToFrame(packet, frame, packet_sz);
 
-  stuffing(frame, frame_sz);
+  stuffing(frame, &frame_sz);
 
   writeFrame(frame, frame_sz);
+
   link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   printf("I-frame sent to receiver.\n\n");
 
@@ -240,6 +253,7 @@ unsigned char* llread() {
 
   unsigned char i_frame_ix[1], i_frame_header[5], ctrl_frame[5];
 
+
   /* read and check header validity */
   while (msg_state != BCC_OK && msg_state != ERROR) {
     num_bytes_read = readFrame(i_frame_ix, 1);
@@ -261,8 +275,9 @@ unsigned char* llread() {
     i_frame_data[data_ix++] = i_frame_ix[0];
   }
 
-  unsigned char bcc2_before_destuffing = i_frame_data[data_ix - 1];
   int frame_data_sz = data_ix - 1;  // taking bcc2 from data frame
+  unsigned char bcc2_before_destuffing = i_frame_data[frame_data_sz];
+
 
   if (msg_state != BCC_OK) {
     printf("I-frame with errors in header received from transmitter.\n\n");
@@ -270,10 +285,15 @@ unsigned char* llread() {
                       ctrl_frame);
     printf("REJ sent to transmitter.\n\n");
   } else {
-    destuffing(i_frame_data, frame_data_sz);
+    destuffing(i_frame_data, &frame_data_sz);
 
+    printf("\n COMPARE TO THIS  \n");
+    for (int i = 0; i < frame_data_sz; i++) {
+      printf("%x ", i_frame_data[i]);
+    }
     unsigned char bcc2_after_destuffing = getBCC2(i_frame_data, frame_data_sz);
     /* check data validity */
+
     if (bcc2_after_destuffing != bcc2_before_destuffing) {
       // has frame already been sent?
       if (i_frame_header[2] != link_layer.sequence_num) {
@@ -285,10 +305,10 @@ unsigned char* llread() {
         printf("I-frame with errors in data received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                           ctrl_frame);
+        sleep(20);
         printf("REJ sent to transmitter.\n\n");
       }
     } else {
-
       printf("I-frame received from transmitter.\n\n");
       buffer = malloc(frame_data_sz);
       memcpy(buffer, i_frame_data, frame_data_sz);
@@ -302,11 +322,7 @@ unsigned char* llread() {
   }
 
   writeFrame(ctrl_frame, 5);
-  printf("\n llread \n");
-  for (int i = 0; i < frame_data_sz; i++) {
-    printf("%x ", buffer[i]);
-  }
-    return buffer;
+  return buffer;
 }
 
 void setupLinkLayer() {

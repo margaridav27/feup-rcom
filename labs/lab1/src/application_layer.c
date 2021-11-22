@@ -181,7 +181,7 @@ int checkCtrlPacket(unsigned char* packet) {
   memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2, L2);
 
   application_layer.file_name = malloc(20);
-  application_layer.file_name = "CHECKTESTFILE.txt";
+  application_layer.file_name = "ourFluffyPenguin.gif";
   openFile();
 
   return PACKET_CTRL_START;
