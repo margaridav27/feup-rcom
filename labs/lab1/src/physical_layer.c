@@ -16,18 +16,10 @@ extern int flag, try;
 int llopen(char* port, flag_t flag) {
   link_layer.status = flag;
 
-  if (link_layer.status == TRANSMITER) {
-    link_layer.fd = open(port, O_RDWR | O_NOCTTY );
-    if (link_layer.fd < 0) {
-      perror("llopen");
-      return -1;
-    }
-  } else {
-    link_layer.fd = open(port, O_RDWR | O_NOCTTY);
-    if (link_layer.fd < 0) {
-      perror("llopen");
-      return -1;
-    }
+  link_layer.fd = open(port, O_RDWR | O_NOCTTY );
+  if (link_layer.fd < 0) {
+    perror("llopen");
+    return -1;
   }
 
   /* setup serial port */
@@ -209,16 +201,19 @@ enum state_t validateIFrame(unsigned char addr,
 
 int llwrite(unsigned char* packet, int packet_sz) {
   int frame_sz = 6 + packet_sz;
+  printf("\n LLWRITE \n");
+  for (int i = 0; i < packet_sz; i++) {
+    printf("%x ", packet[i]);
+  }
   unsigned char* frame = malloc(2 * frame_sz);
 
   packetToFrame(packet, frame, packet_sz);
+
   stuffing(frame, frame_sz);
 
   writeFrame(frame, frame_sz);
   link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   printf("I-frame sent to receiver.\n\n");
-  free(packet);
-
 
   int num_bytes_read = 0;
   unsigned char res[5];
@@ -237,7 +232,8 @@ int llwrite(unsigned char* packet, int packet_sz) {
   return -1;
 }
 
-int llread(unsigned char* buffer) {
+unsigned char* llread() {
+  unsigned char* buffer = NULL;
   enum state_t msg_state = START;
 
   int num_bytes_read, ix = 0;
@@ -255,7 +251,7 @@ int llread(unsigned char* buffer) {
   }
 
   /* read an check data validity */
-  unsigned char i_frame_data[100];
+  unsigned char i_frame_data[200];
   int data_ix = 0;
 
   for (;;) {
@@ -294,9 +290,9 @@ int llread(unsigned char* buffer) {
     } else {
 
       printf("I-frame received from transmitter.\n\n");
-      buffer = realloc(buffer, frame_data_sz);
+      buffer = malloc(frame_data_sz);
       memcpy(buffer, i_frame_data, frame_data_sz);
- 
+
       link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
       assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
                         ctrl_frame);
@@ -306,7 +302,11 @@ int llread(unsigned char* buffer) {
   }
 
   writeFrame(ctrl_frame, 5);
-  return frame_data_sz;
+  printf("\n llread \n");
+  for (int i = 0; i < frame_data_sz; i++) {
+    printf("%x ", buffer[i]);
+  }
+    return buffer;
 }
 
 void setupLinkLayer() {

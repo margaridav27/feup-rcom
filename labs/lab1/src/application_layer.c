@@ -28,18 +28,32 @@ application_layer_t application_layer;
 
 int openFile() {
   const char* filename = application_layer.file_name;
-  application_layer.file_descriptor =
-      open(filename,
-           O_RDWR | O_NOCTTY | O_NONBLOCK);  // será que tem que ser fopen?
+  
+  if (application_layer.status == TRANSMITER) {
+    application_layer.file_descriptor =
+        open(filename,
+             O_RDONLY | O_NOCTTY );  // será que tem que ser fopen?
 
-  if (application_layer.file_descriptor < 0) {
-    perror("open file");
-    return -1;
+    if (application_layer.file_descriptor < 0) {
+      perror("open file");
+      return -1;
+    }
+  } else {
+    application_layer.file_descriptor =
+        open(filename,
+             O_WRONLY | O_NOCTTY | O_CREAT |O_NONBLOCK);  // será que tem que ser fopen?
+
+    if (application_layer.file_descriptor < 0) {
+      perror("open file");
+      return -1;
+    }
   }
+
   return 0;
 }
 
 int init(char* file_name, char* port) {
+  application_layer.max_size_read = 100;
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
     openFile();
@@ -120,8 +134,8 @@ int sendCtrlPacket(unsigned char ctrl) {
 }
 
 int sendDataPacket(unsigned char* data,
-                     unsigned char seq_num) {
-  unsigned char data_size = sizeof(data);
+                     unsigned char seq_num, int read_sz) {
+  unsigned char data_size = read_sz;
   unsigned char packet[4 + data_size];
 
   if (packet == NULL) {
@@ -138,6 +152,7 @@ int sendDataPacket(unsigned char* data,
   while(llwrite(packet, 4 + data_size) != 0) {
     printf("Re-sent I-frame.\n");
   };
+
   return 0;
 }
 
@@ -163,7 +178,10 @@ int checkCtrlPacket(unsigned char* packet) {
   memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, L1);
   int L2 = packet[PACKET_CTRL_V1_IX + L1 + 2];
   application_layer.file_name = malloc(L2);
-  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2,L2);
+  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2, L2);
+
+  application_layer.file_name = malloc(20);
+  application_layer.file_name = "CHECKTESTFILE.txt";
   openFile();
 
   return PACKET_CTRL_START;
@@ -172,11 +190,14 @@ int checkCtrlPacket(unsigned char* packet) {
 int writeToFile(unsigned char* packet) {
   int L1 = packet[PACKET_DATA_LENGTH_LSB_IX];
   int L2 = packet[PACKET_DATA_LENGTH_MSB_IX];
-  int k = 256 * L1 + L2;
+
+  int k = (256 * L2) + L1;
   unsigned char file_data[k];
 
   memcpy(file_data, packet + PACKET_DATA_START_IX, k);
-  return write(application_layer.file_descriptor, file_data, sizeof(file_data));
+
+  return write(application_layer.file_descriptor, file_data,
+                 sizeof(file_data));
 }
 
 int communicate(char* port, char* file_name) {
@@ -189,18 +210,22 @@ int communicate(char* port, char* file_name) {
     sendCtrlPacket(PACKET_CTRL_START);
 
     unsigned char seq_num = 0;
-    while (read(application_layer.file_descriptor, buf,
-                application_layer.max_size_read) > 0) {
-      sendDataPacket(buf, seq_num);
+    int c; 
+    while ((c = read(application_layer.file_descriptor, buf,
+                 application_layer.max_size_read)) > 0) {
+      sendDataPacket(buf, seq_num, c);
       seq_num++;
     }
     sleep(9);
 
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
-    unsigned char* packet = malloc(105);
+
     for (;;) {
-      llread(packet);
+      unsigned char* packet = llread();
+
+      if (packet == NULL)
+        continue;
 
       int ctrl_byte = checkCtrlPacket(packet);
 

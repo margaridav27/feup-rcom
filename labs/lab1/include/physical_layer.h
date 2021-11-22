@@ -30,7 +30,7 @@ void destuffing(unsigned char* frame, int frame_sz);
 
 int llwrite(unsigned char* packet, int packet_sz);
 
-int llread(unsigned char* buffer);
+unsigned char* llread();
 
 void setupLinkLayer();
 

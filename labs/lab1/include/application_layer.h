@@ -8,7 +8,7 @@ void setID(int id);
 int sendCtrlPacket(unsigned char ctrl);
 
 int sendDataPacket(unsigned char* data,
-                     unsigned char seq_num);
+                     unsigned char seq_num, int read_sz);
 
 int communicate(char* filename, char* port);
 
