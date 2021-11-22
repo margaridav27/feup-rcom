@@ -9,7 +9,7 @@ typedef struct {
   char port[20];
   int fd;
   int baud_rate;
-  unsigned char sequence_num;
+  unsigned int sequence_num;
   unsigned int timeout;
   unsigned int num_transmissions;
   char frame[MAX_SIZE];
@@ -20,17 +20,9 @@ int llopen(char* port, flag_t flag);
 
 int llclose();
 
-unsigned char getBCC2(unsigned char* data, int packet_sz);
+int llwrite(unsigned char* packet);
 
-int packetToFrame(unsigned char* packet, unsigned char* frame, int packet_sz);
-
-void stuffing(unsigned char* frame, int* frame_sz);
-
-void destuffing(unsigned char* frame, int* frame_sz);
-
-int llwrite(unsigned char* packet, int packet_sz);
-
-unsigned char* llread();
+int llread();
 
 void setupLinkLayer();
 
@@ -38,18 +30,14 @@ void assembleCtrlFrame(unsigned char addr,
                        unsigned char ctrl,
                        unsigned char* frame);
 
-int writeFrame(unsigned char* frame, int sz);
+int writeCtrlFrame(unsigned char* frame);
 
-int readFrame(unsigned char* frame, int sz);
+int readCtrlFrame(unsigned char* frame);
 
 enum state_t validateCtrlFrame(unsigned char addr,
                                unsigned char ctrl,
                                unsigned char* frame,
                                enum state_t curr_state);
-
-enum state_t validateIFrame(unsigned char addr,
-                            unsigned char* frame,
-                            enum state_t curr_state);
 
 int establishmentTransmitter();
 
@@ -58,5 +46,11 @@ int establishmentReceiver();
 int terminationTransmitter();
 
 int terminationReceiver();
+
+int packetToFrame(unsigned char* packet, unsigned char* frame);
+
+int stuffing(unsigned char* frame);
+
+int destuffing(unsigned char* frame);
 
 #endif

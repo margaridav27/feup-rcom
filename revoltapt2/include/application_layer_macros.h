@@ -13,8 +13,6 @@
 #define PACKET_CTRL_END 3       /* end data packet emission */
 #define PACKET_DATA_FILE_SIZE 0 /* ctrl packet file size parameter identifier */
 #define PACKET_DATA_FILE_NAME 1 /* ctrl packet file name parameter identifier */
-#define PACKET_CTRL_T1_IX 1
-#define PACKET_CTRL_L1_IX 2
 #define PACKET_CTRL_V1_IX 3
 
 /* data packet */
