@@ -123,11 +123,6 @@ void destuffing(unsigned char* frame, int* frame_sz) {
 
   *frame_sz = destuffed_frame_ix;
   memcpy(frame, destuffed_frame, destuffed_frame_ix);
-
-  printf("\n check THIS \n");
-  for (int i = 0; i < destuffed_frame_ix; i++) {
-    printf("%x ", frame[i]);
-  }
 }
 
 enum state_t validateCtrlFrame(unsigned char addr,
@@ -226,29 +221,38 @@ int llwrite(unsigned char* packet, int packet_sz) {
   int num_bytes_read = 0;
   unsigned char res[5];
 
-   for(;;) {
-     writeFrame(frame, frame_sz);
-     alarm(1);
-     
-     printf("I-frame sent to receiver.\n\n");
+  try = 1;
+  flag = 1;
 
-     while(try < 5 && num_bytes_read < 5) {
-        num_bytes_read = readFrame(res,5);
-     } 
-     if (num_bytes_read == 5) {
-        break;
+  for (;;) {
+    writeFrame(frame, frame_sz);
+    printf("I-frame sent to receiver.\n\n");
+
+    while (try < 5 && num_bytes_read < 5) {
+      sleep(1);
+      num_bytes_read = readFrame(res, 5);
+      if (flag) {
+        alarm(5);
+        flag = 1;
       }
     }
-  printf("SAI\n");
-  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+    if (num_bytes_read == 5) {
+      break;
+    }
+  }
 
+  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
 
   unsigned char RR = CTRL_RR(link_layer.sequence_num);
 
   if ((res[2] == RR)) {
+    printf("Received RR\n\n");
     return 0;
   }
+  printf("Received REJ\n\n");
 
+  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+  return -1;
   link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   return -1;
 }
@@ -295,10 +299,6 @@ unsigned char* llread() {
   } else {
     destuffing(i_frame_data, &frame_data_sz);
 
-    printf("\n COMPARE TO THIS  \n");
-    for (int i = 0; i < frame_data_sz; i++) {
-      printf("%x ", i_frame_data[i]);
-    }
     unsigned char bcc2_after_destuffing = getBCC2(i_frame_data, frame_data_sz);
     /* check data validity */
 
@@ -313,11 +313,6 @@ unsigned char* llread() {
         printf("I-frame with errors in data received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                           ctrl_frame);
-                              for (;;) {
-    readFrame(i_frame_ix, 1);
-    if (i_frame_ix[0] == FLAG_BYTE)
-      break;
-    }
         sleep(4);
         printf("REJ sent to transmitter.\n\n");
       }

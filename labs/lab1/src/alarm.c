@@ -10,6 +10,7 @@ void setupAlarm() {
 }
 
 void handler() {
-  flag = 1;
   try++;
+  printf("triimm trriim\n");
+  flag = 1;
 }

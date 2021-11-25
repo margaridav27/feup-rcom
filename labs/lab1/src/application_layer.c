@@ -75,7 +75,7 @@ int sendCtrlPacket(unsigned char ctrl) {
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
-      .length = (int)ceil((float)fsize /255),
+      .length = (int)ceil((float) fsize /255),
       .value = malloc(file_size_param.length * sizeof(unsigned char))};
 
   if (file_size_param.value == NULL) {
