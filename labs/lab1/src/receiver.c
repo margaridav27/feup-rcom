@@ -18,8 +18,6 @@ int main(int argc, char** argv) {
   if (checkArgs(argc, argv) == -1)
     return -1;
 
-  setupAlarm();
-
   setID(RECEIVER_ID);
 
   communicate(argv[1], "");

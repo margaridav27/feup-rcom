@@ -223,17 +223,25 @@ int llwrite(unsigned char* packet, int packet_sz) {
 
   stuffing(frame, &frame_sz);
 
-  writeFrame(frame, frame_sz);
-
-  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
-  printf("I-frame sent to receiver.\n\n");
-
   int num_bytes_read = 0;
   unsigned char res[5];
 
-  while(num_bytes_read != 5) {
-    num_bytes_read = readFrame(res, 5);
-  }
+   for(;;) {
+     writeFrame(frame, frame_sz);
+     alarm(1);
+     
+     printf("I-frame sent to receiver.\n\n");
+
+     while(try < 5 && num_bytes_read < 5) {
+        num_bytes_read = readFrame(res,5);
+     } 
+     if (num_bytes_read == 5) {
+        break;
+      }
+    }
+  printf("SAI\n");
+  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
+
 
   unsigned char RR = CTRL_RR(link_layer.sequence_num);
 
@@ -305,7 +313,12 @@ unsigned char* llread() {
         printf("I-frame with errors in data received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                           ctrl_frame);
-        sleep(20);
+                              for (;;) {
+    readFrame(i_frame_ix, 1);
+    if (i_frame_ix[0] == FLAG_BYTE)
+      break;
+    }
+        sleep(4);
         printf("REJ sent to transmitter.\n\n");
       }
     } else {

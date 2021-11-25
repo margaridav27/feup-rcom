@@ -309,6 +309,11 @@ unsigned char* llread() {
         printf("I-frame already received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
                           ctrl_frame);
+                              for (;;) {
+    readFrame(i_frame_ix, 1);
+    if (i_frame_ix[0] == FLAG_BYTE)
+      break;
+    }
         printf("RR sent to transmitter.\n\n");
       } else {
         printf("I-frame with errors in data received from transmitter.\n\n");

@@ -1,6 +1,7 @@
 #include "../include/application_layer.h"
 #include "../include/application_layer_macros.h"
 #include "../include/physical_layer.h"
+#include "../include/alarm.h"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -9,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <math.h>
+#include <signal.h>
 
 typedef struct {
   unsigned char type;
@@ -53,6 +55,7 @@ int openFile() {
 }
 
 int init(char* file_name, char* port) {
+  (void) signal(SIGALRM, handler);
   application_layer.max_size_read = 100;
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
