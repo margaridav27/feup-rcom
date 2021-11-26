@@ -17,10 +17,18 @@ int counter = 0;
 int llopen(char* port, flag_t flag) {
   link_layer.status = flag;
 
-  link_layer.fd = open(port, O_RDWR | O_NOCTTY );
-  if (link_layer.fd < 0) {
-    perror("llopen");
-    return -1;
+  if (flag == TRANSMITER) {
+    link_layer.fd = open(port, O_RDWR | O_NOCTTY | O_NONBLOCK);
+    if (link_layer.fd < 0) {
+      perror("llopen");
+      return -1;
+    }
+  } else {
+    link_layer.fd = open(port, O_RDWR | O_NOCTTY);
+    if (link_layer.fd < 0) {
+      perror("llopen");
+      return -1;
+    }
   }
 
   /* setup serial port */
@@ -222,34 +230,18 @@ int llwrite(unsigned char* packet, int packet_sz) {
   int num_bytes_read = 0;
   unsigned char res[5];
 
-  try = 1;
-  flag = 1;
-  counter++;
 
   for (;;) {
-    printf("%d counter\n", counter);
-    if (counter == 109 || counter == 5) {
-      frame[2] = "0x00";
-    }
-    if (counter == 110 || counter == 2) {
-      frame[3] = "0x00";
-    }
-    if (counter == 111 || counter == 3) {
-      frame[1] = "0x00";
-    }
-    if (counter == 113 || counter == 4) {
-      frame[2] = "0x00";
-    }
-
+                            
     writeFrame(frame, frame_sz);
     printf("I-frame sent to receiver.\n\n");
-
+    try = 1; flag = 1;
     while (try < 5 && num_bytes_read < 5) {
-      sleep(1);
       num_bytes_read = readFrame(res, 5);
-      if (flag) {
-        alarm(5);
-        flag = 1;
+      if (flag && num_bytes_read != 5) {
+        alarm(2);
+        printf("Set alarm\n");
+        flag = 0;
       }
     }
     if (num_bytes_read == 5) {
@@ -329,7 +321,6 @@ unsigned char* llread() {
         printf("I-frame with errors in data received from transmitter.\n\n");
         assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                           ctrl_frame);
-        sleep(4);
         printf("REJ sent to transmitter.\n\n");
       }
     } else {
