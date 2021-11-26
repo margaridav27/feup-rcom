@@ -55,7 +55,9 @@ int openFile() {
 }
 
 int init(char* file_name, char* port) {
-  (void) signal(SIGALRM, handler);
+  // (void) signal(SIGALRM, handler);
+  setupAlarm();
+
   application_layer.max_size_read = 100;
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
@@ -75,7 +77,7 @@ int sendCtrlPacket(unsigned char ctrl) {
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
-      .length = (int)ceil((float) fsize /255),
+      .length = (int)ceil((float) log(fsize) /8),
       .value = malloc(file_size_param.length * sizeof(unsigned char))};
 
   if (file_size_param.value == NULL) {

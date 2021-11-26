@@ -259,9 +259,6 @@ int llwrite(unsigned char* packet, int packet_sz) {
   }
   printf("Received REJ\n\n");
 
-  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
-  return -1;
-  link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   return -1;
 }
 
