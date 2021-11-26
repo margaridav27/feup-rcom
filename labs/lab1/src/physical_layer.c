@@ -12,6 +12,7 @@ enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP, ERROR };
 
 link_layer_t link_layer;
 extern int flag, try;
+int counter = 0;
 
 int llopen(char* port, flag_t flag) {
   link_layer.status = flag;
@@ -223,8 +224,23 @@ int llwrite(unsigned char* packet, int packet_sz) {
 
   try = 1;
   flag = 1;
+  counter++;
 
   for (;;) {
+    printf("%d counter\n", counter);
+    if (counter == 109 || counter == 5) {
+      frame[2] = "0x00";
+    }
+    if (counter == 110 || counter == 2) {
+      frame[3] = "0x00";
+    }
+    if (counter == 111 || counter == 3) {
+      frame[1] = "0x00";
+    }
+    if (counter == 113 || counter == 4) {
+      frame[2] = "0x00";
+    }
+
     writeFrame(frame, frame_sz);
     printf("I-frame sent to receiver.\n\n");
 
