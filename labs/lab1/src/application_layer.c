@@ -157,10 +157,8 @@ int sendDataPacket(unsigned char* data, unsigned char seq_num, int read_sz) {
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
-  while (llwrite(packet, 4 + data_size) != 0) {
-    printf("Re-sent I-frame.\n\n");
-  };
-
+  while (llwrite(packet, 4 + data_size) != 0) printf("[sendDataPacket] I-frame sent.\n\n");
+  
   return 0;
 }
 

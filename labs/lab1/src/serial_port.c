@@ -40,7 +40,7 @@ int setupSerialPort() {
     return -1;
   }
 
-  printf("New termios structure set.\n\n");
+  printf("[setupSerialPort] New termios structure set.\n\n");
   return 0;
 }
 
