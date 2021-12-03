@@ -1,14 +1,14 @@
 #include "../include/serial_port.h"
-#include "../include/physical_layer.h"
+#include "../include/link_layer.h"
 
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <termios.h>
-#include <strings.h>
 
 extern link_layer_t link_layer;
 struct termios oldtio;

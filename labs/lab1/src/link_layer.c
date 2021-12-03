@@ -1,11 +1,11 @@
-#include "../include/physical_layer.h"
+#include "../include/link_layer.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdlib.h>
-#include "../include/physical_layer_macros.h"
+#include <string.h>
+#include <unistd.h>
+#include "../include/link_layer_macros.h"
 #include "../include/serial_port.h"
 
 enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP, ERROR };
@@ -16,7 +16,7 @@ extern int flag, try;
 int llopen(char* port, flag_t flag) {
   link_layer.status = flag;
 
-  link_layer.fd = open(port, O_RDWR | O_NOCTTY );
+  link_layer.fd = open(port, O_RDWR | O_NOCTTY);
   if (link_layer.fd < 0) {
     perror("llopen");
     return -1;
@@ -27,33 +27,30 @@ int llopen(char* port, flag_t flag) {
   setupSerialPort(link_layer.fd);
 
   /* establish connection by sending SET ctrl frame */
-  if (flag == TRANSMITER) {
+  if (flag == TRANSMITER)
     establishmentTransmitter();
-  } else {
+  else
     establishmentReceiver();
-    // receiver a receber estabelishment();
-  }
+
   return 0;
 }
 
 int llclose() {
-  if (link_layer.status == TRANSMITER) {
+  if (link_layer.status == TRANSMITER)
     terminationTransmitter();
-  } else {
+  else
     terminationReceiver();
-  }
 
   resetSerialPort();
   close(link_layer.fd);
+
   return 0;
 }
 
 unsigned char getBCC2(unsigned char* data, int sz) {
   unsigned char BCC2 = data[0];
-  for (int i = 1; i < sz; i++) {
+  for (int i = 1; i < sz; i++)
     BCC2 ^= data[i];
-  }
-
   return BCC2;
 }
 
@@ -76,8 +73,7 @@ void stuffing(unsigned char* frame, int* frame_sz) {
   int stuffed_frame_ix = 0;
   unsigned char bcc = frame[*frame_sz - 2];
 
-  for (int i = 4; i < *frame_sz - 2;
-   i++) {
+  for (int i = 4; i < *frame_sz - 2; i++) {
     if (frame[i] == FLAG_BYTE) {
       stuffed_frame[stuffed_frame_ix] = ESCAPE_BYTE;
       stuffed_frame_ix++;
@@ -123,11 +119,6 @@ void destuffing(unsigned char* frame, int* frame_sz) {
 
   *frame_sz = destuffed_frame_ix;
   memcpy(frame, destuffed_frame, destuffed_frame_ix);
-
-  printf("\n check THIS \n");
-  for (int i = 0; i < destuffed_frame_ix; i++) {
-    printf("%x ", frame[i]);
-  }
 }
 
 enum state_t validateCtrlFrame(unsigned char addr,
@@ -226,28 +217,21 @@ int llwrite(unsigned char* packet, int packet_sz) {
   int num_bytes_read = 0;
   unsigned char res[5];
 
-   for(;;) {
-     writeFrame(frame, frame_sz);
-     alarm(1);
-     
-     printf("I-frame sent to receiver.\n\n");
+  for (;;) {
+    writeFrame(frame, frame_sz);
 
-     while(try < 5 && num_bytes_read < 5) {
-        num_bytes_read = readFrame(res,5);
-     } 
-     if (num_bytes_read == 5) {
-        break;
-      }
-    }
-  printf("SAI\n");
+    alarm(1);
+
+    printf("[llwrite] I-frame sent to receiver.\n\n");
+
+    while (try < 5 && num_bytes_read < 5) num_bytes_read = readFrame(res, 5);
+    if (num_bytes_read == 5) break;
+  }
+
   link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
-
-
   unsigned char RR = CTRL_RR(link_layer.sequence_num);
 
-  if ((res[2] == RR)) {
-    return 0;
-  }
+  if (res[2] == RR) return 0;
 
   link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
   return -1;
@@ -260,7 +244,6 @@ unsigned char* llread() {
   int num_bytes_read, ix = 0;
 
   unsigned char i_frame_ix[1], i_frame_header[5], ctrl_frame[5];
-
 
   /* read and check header validity */
   while (msg_state != BCC_OK && msg_state != ERROR) {
@@ -278,59 +261,53 @@ unsigned char* llread() {
 
   for (;;) {
     readFrame(i_frame_ix, 1);
-    if (i_frame_ix[0] == FLAG_BYTE)
-      break;
+    if (i_frame_ix[0] == FLAG_BYTE) break;
     i_frame_data[data_ix++] = i_frame_ix[0];
   }
 
-  int frame_data_sz = data_ix - 1;  // taking bcc2 from data frame
+  int frame_data_sz = data_ix - 1; 
   unsigned char bcc2_before_destuffing = i_frame_data[frame_data_sz];
 
+  if (msg_state != BCC_OK) { /* errors in header */
+    printf("[llread] I-frame with errors in header received from transmitter.\n\n");
 
-  if (msg_state != BCC_OK) {
-    printf("I-frame with errors in header received from transmitter.\n\n");
-    assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
-                      ctrl_frame);
-    printf("REJ sent to transmitter.\n\n");
-  } else {
+    assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num), ctrl_frame);
+
+    printf("[llread] REJ sent to transmitter.\n\n");
+  } else { /* header with no errors */
     destuffing(i_frame_data, &frame_data_sz);
 
-    printf("\n COMPARE TO THIS  \n");
-    for (int i = 0; i < frame_data_sz; i++) {
-      printf("%x ", i_frame_data[i]);
-    }
     unsigned char bcc2_after_destuffing = getBCC2(i_frame_data, frame_data_sz);
-    /* check data validity */
 
-    if (bcc2_after_destuffing != bcc2_before_destuffing) {
-      // has frame already been sent?
-      if (i_frame_header[2] != link_layer.sequence_num) {
-        printf("I-frame already received from transmitter.\n\n");
-        assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
-                          ctrl_frame);
-        printf("RR sent to transmitter.\n\n");
-      } else {
-        printf("I-frame with errors in data received from transmitter.\n\n");
-        assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
-                          ctrl_frame);
-                              for (;;) {
-    readFrame(i_frame_ix, 1);
-    if (i_frame_ix[0] == FLAG_BYTE)
-      break;
-    }
+    if (bcc2_after_destuffing != bcc2_before_destuffing) { 
+      if (i_frame_header[2] != link_layer.sequence_num) { /* repeated frame */
+        printf("[llread] I-frame already received from transmitter.\n\n");
+
+        assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num), ctrl_frame);
+
+        printf("[llread] RR sent to transmitter.\n\n");
+      } else { /* first time receiving frame */
+        printf("[llread] I-frame with errors in data received from transmitter.\n\n");
+
+        assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num), ctrl_frame);
+
+        for (;;) { /* to discard the frame on needs to read it first */
+          readFrame(i_frame_ix, 1);
+          if (i_frame_ix[0] == FLAG_BYTE) break;
+        }
+
         sleep(4);
-        printf("REJ sent to transmitter.\n\n");
+        printf("[llread] REJ sent to transmitter.\n\n");
       }
-    } else {
-      printf("I-frame received from transmitter.\n\n");
+    } else { /* frame with no errors */
+      printf("[llread] I-frame received from transmitter.\n\n");
+
       buffer = malloc(frame_data_sz);
       memcpy(buffer, i_frame_data, frame_data_sz);
-
       link_layer.sequence_num = ((~link_layer.sequence_num) & BIT(7));
-      assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
-                        ctrl_frame);
+      assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num), ctrl_frame);
 
-      printf("RR sent to transmitter.\n\n");
+      printf("[llread] RR sent to transmitter.\n\n");
     }
   }
 
@@ -368,17 +345,16 @@ int establishmentTransmitter() {
 
   enum state_t msg_state = START;
 
-  int num_bytes_written, num_bytes_read;
+  int num_bytes_read;
   unsigned char set[5], response[1];
 
   assembleCtrlFrame(ADDR_CE_RR, CTRL_SET, set);
 
   while (msg_state != STOP && try < 4) {
     if (flag && msg_state != STOP) {
-      num_bytes_written = writeFrame(set, sizeof(set));
-
-      printf("Try SET #%d: %x %x %x %x %x (%d bytes written)\n\n", try, set[0],
-             set[1], set[2], set[3], set[4], num_bytes_written);
+      writeFrame(set, sizeof(set));
+      printf("[establishmentTransmitter] SET supervision frame sent to receiver: %x %x %x %x %x\n\n", 
+             set[0], set[1], set[2], set[3], set[4]);
 
       alarm(6);
       msg_state = START;
@@ -387,16 +363,14 @@ int establishmentTransmitter() {
     flag = 0;
 
     num_bytes_read = readFrame(response, 1);
-    if (num_bytes_read > 0) {
-      msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_UA, response, msg_state);
-    }
+    if (num_bytes_read > 0) msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_UA, response, msg_state);
   }
 
   if (msg_state == STOP) {
-    printf("UA received from transmitted.\n\n");
+    printf("[establishmentTransmitter] UA supervision frame received from transmitter.\n\n");
     return 0;
   } else {
-    printf("UA not received from transmitted.\n\n");
+    printf("[establishmentTransmitter] UA supervision frame not received from transmitter.\n\n");
     return -1;
   }
 }
@@ -404,30 +378,26 @@ int establishmentTransmitter() {
 int establishmentReceiver() {
   enum state_t msg_state = START;
 
-  int num_bytes_written, num_bytes_read;
+  int num_bytes_read;
   unsigned char set_cmd[1], ua_cmd[5];
 
   while (msg_state != STOP) {
-    printf("reading\n");
     num_bytes_read = readFrame(set_cmd, 1);
-
-    if (num_bytes_read > 0)
-      msg_state = validateCtrlFrame(ADDR_CE_RR, CTRL_SET, set_cmd, msg_state);
+    if (num_bytes_read > 0) msg_state = validateCtrlFrame(ADDR_CE_RR, CTRL_SET, set_cmd, msg_state);
   }
 
   if (msg_state != STOP) {
-    printf("Receiver did not send DISC frame back to transmitter.\n\n");
+    printf("[establishmentReceiver] SET supervision frame not received from transmitter.\n\n");
     return -1;
   } else {
-    printf("SET frame received from transmitter.\n\n");
+    printf("[establishmentReceiver] SET supervision frame received from transmitter.\n\n");
   }
 
   assembleCtrlFrame(ADDR_CR_RE, CTRL_UA, ua_cmd);
 
-  num_bytes_written = writeFrame(ua_cmd, sizeof(ua_cmd));
-  printf("Sent UA to transmitter: %x %x %x %x %x (%d bytes written)\n\n",
-         ua_cmd[0], ua_cmd[1], ua_cmd[2], ua_cmd[3], ua_cmd[4],
-         num_bytes_written);
+  writeFrame(ua_cmd, sizeof(ua_cmd));
+  printf("[establishmentReceiver] UA supervision frame sent to transmitter: %x %x %x %x %x\n\n",
+         ua_cmd[0], ua_cmd[1], ua_cmd[2], ua_cmd[3], ua_cmd[4]);
 
   return 0;
 }
@@ -436,17 +406,16 @@ int terminationTransmitter() {
   try = 1;
   enum state_t msg_state = START;
 
-  int num_bytes_written, num_bytes_read;
+  int num_bytes_read;
   unsigned char disc[5], ua[5], response[1];
 
   assembleCtrlFrame(ADDR_CE_RR, CTRL_DISC, disc);
 
   while (msg_state != STOP && try < 4) {
     if (flag) {
-      num_bytes_written = writeFrame(disc, sizeof(disc));
-
-      printf("Try DISC #%d: %x %x %x %x %x (%d bytes written)\n\n", try,
-             disc[0], disc[1], disc[2], disc[3], disc[4], num_bytes_written);
+      writeFrame(disc, sizeof(disc));
+      printf("[terminationTransmitter] DISC supervision frame sent to receiver: %x %x %x %x %x\n\n",
+             disc[0], disc[1], disc[2], disc[3], disc[4]);
 
       alarm(3);
       msg_state = START;
@@ -455,24 +424,21 @@ int terminationTransmitter() {
     flag = 0;
 
     num_bytes_read = readFrame(response, 1);
-    if (num_bytes_read > 0) {
-      msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_DISC, response, msg_state);
-    }
+    if (num_bytes_read > 0) msg_state = validateCtrlFrame(ADDR_CR_RE, CTRL_DISC, response, msg_state);
   }
 
   if (msg_state != STOP) {
-    printf("Receiver did not send DISC frame back to transmitter.\n\n");
+    printf("[terminationTransmitter] DISC supervision frame not sent back to transmitter.\n\n");
     return -1;
   } else {
-    printf("DISC received back from receiver.\n\n");
+    printf("[terminationTransmitter] DISC supervision frame sent back to transmitter.\n\n");
   }
 
   assembleCtrlFrame(ADDR_CE_RR, CTRL_UA, ua);
 
-  num_bytes_written = writeFrame(ua, sizeof(ua));
-
-  printf("Sent final UA to transmitter: %x %x %x %x %x (%d bytes written)\n\n",
-         ua[0], ua[1], ua[2], ua[3], ua[4], num_bytes_written);
+  writeFrame(ua, sizeof(ua));
+  printf("[terminationTransmitter] Final UA supervision frame sent to transmitter: %x %x %x %x %x\n\n",
+         ua[0], ua[1], ua[2], ua[3], ua[4]);
 
   return 0;
 }
@@ -480,47 +446,39 @@ int terminationTransmitter() {
 int terminationReceiver() {
   enum state_t msg_state = START;
 
-  int num_bytes_written, num_bytes_read;
+  int num_bytes_read;
   unsigned char receive_cmd[1], disc_cmd[5];
 
   while (msg_state != STOP) {
     num_bytes_read = readFrame(receive_cmd, 1);
-
-    if (num_bytes_read > 0) {
-      msg_state =
-          validateCtrlFrame(ADDR_CE_RR, CTRL_DISC, receive_cmd, msg_state);
-    }
+    if (num_bytes_read > 0) msg_state = validateCtrlFrame(ADDR_CE_RR, CTRL_DISC, receive_cmd, msg_state);
   }
 
   if (msg_state != STOP) {
-    printf("Receiver did not receive DISC frame back from transmitter.\n\n");
+    printf("[terminationReceiver] DISC supervision frame not sent from transmitter.\n\n");
     return -1;
   } else {
-    printf("DISC frame received from transmitter.\n\n");
+    printf("[terminationReceiver] DISC supervision frame sent from transmitter.\n\n");
   }
 
   assembleCtrlFrame(ADDR_CR_RE, CTRL_DISC, disc_cmd);
 
-  num_bytes_written = writeFrame(disc_cmd, sizeof(disc_cmd));
-  printf("Sent DISC back to emissor: %x %x %x %x %x (%d bytes written)\n\n",
-         disc_cmd[0], disc_cmd[1], disc_cmd[2], disc_cmd[3], disc_cmd[4],
-         num_bytes_written);
+  writeFrame(disc_cmd, sizeof(disc_cmd));
+  printf("[terminationReceiver] DISC supervision frame sent back to transmitter: %x %x %x %x %x\n\n",
+         disc_cmd[0], disc_cmd[1], disc_cmd[2], disc_cmd[3], disc_cmd[4]);
 
   msg_state = START;
 
   while (msg_state != STOP) {
     num_bytes_read = readFrame(receive_cmd, 1);
-
-    if (num_bytes_read > 0)
-      msg_state =
-          validateCtrlFrame(ADDR_CE_RR, CTRL_UA, receive_cmd, msg_state);
+    if (num_bytes_read > 0) msg_state = validateCtrlFrame(ADDR_CE_RR, CTRL_UA, receive_cmd, msg_state);
   }
 
   if (msg_state != STOP) {
-    printf("UA frame didn't received back from transmitter.\n\n");
+    printf("[terminationReceiver] Final UA supervision frame not received from transmitter.\n\n");
     return -1;
   } else {
-    printf("UA received from transmitter.\n");
+    printf("[terminationReceiver] Final UA supervision frame received from transmitter.\n");
   }
   return 0;
 }

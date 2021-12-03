@@ -1,16 +1,16 @@
 #include "../include/application_layer.h"
-#include "../include/application_layer_macros.h"
-#include "../include/physical_layer.h"
 #include "../include/alarm.h"
+#include "../include/application_layer_macros.h"
+#include "../include/link_layer.h"
 
 #include <fcntl.h>
+#include <math.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <math.h>
-#include <signal.h>
 
 typedef struct {
   unsigned char type;
@@ -30,11 +30,9 @@ application_layer_t application_layer;
 
 int openFile() {
   const char* filename = application_layer.file_name;
-  
+
   if (application_layer.status == TRANSMITER) {
-    application_layer.file_descriptor =
-        open(filename,
-             O_RDONLY | O_NOCTTY );  // será que tem que ser fopen?
+    application_layer.file_descriptor = open(filename, O_RDONLY | O_NOCTTY);
 
     if (application_layer.file_descriptor < 0) {
       perror("open file");
@@ -42,8 +40,7 @@ int openFile() {
     }
   } else {
     application_layer.file_descriptor =
-        open(filename,
-             O_WRONLY | O_NOCTTY | O_CREAT |O_NONBLOCK);  // será que tem que ser fopen?
+        open(filename, O_WRONLY | O_NOCTTY | O_CREAT | O_NONBLOCK);
 
     if (application_layer.file_descriptor < 0) {
       perror("open file");
@@ -54,9 +51,19 @@ int openFile() {
   return 0;
 }
 
+void setID(int id) {
+  if (id) {
+    application_layer.status = RECEIVER;
+  } else {
+    application_layer.status = TRANSMITER;
+  }
+}
+
 int init(char* file_name, char* port) {
-  (void) signal(SIGALRM, handler);
+  setupAlarm();
+
   application_layer.max_size_read = 100;
+
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
     openFile();
@@ -75,7 +82,7 @@ int sendCtrlPacket(unsigned char ctrl) {
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
-      .length = (int)ceil((float)fsize /255),
+      .length = (int)ceil((float)fsize / 255),
       .value = malloc(file_size_param.length * sizeof(unsigned char))};
 
   if (file_size_param.value == NULL) {
@@ -106,8 +113,7 @@ int sendCtrlPacket(unsigned char ctrl) {
     return -1;
   }
 
-  memcpy(file_name_param.value, application_layer.file_name,
-         fname);
+  memcpy(file_name_param.value, application_layer.file_name, fname);
 
   int packet_sz = 1 + 2 + 2 + fname + file_size_param.length;
   packet = malloc(packet_sz);
@@ -136,8 +142,7 @@ int sendCtrlPacket(unsigned char ctrl) {
   return llwrite(packet, packet_sz);
 }
 
-int sendDataPacket(unsigned char* data,
-                     unsigned char seq_num, int read_sz) {
+int sendDataPacket(unsigned char* data, unsigned char seq_num, int read_sz) {
   unsigned char data_size = read_sz;
   unsigned char packet[4 + data_size];
 
@@ -152,23 +157,14 @@ int sendDataPacket(unsigned char* data,
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
-  while(llwrite(packet, 4 + data_size) != 0) {
-    printf("Re-sent I-frame.\n");
+  while (llwrite(packet, 4 + data_size) != 0) {
+    printf("Re-sent I-frame.\n\n");
   };
 
   return 0;
 }
 
-void setID(int id) {
-  if (id) {
-    application_layer.status = RECEIVER;
-  } else {
-    application_layer.status = TRANSMITER;
-  }
-}
-
 int checkCtrlPacket(unsigned char* packet) {
-
   if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END &&
       packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
     return 1;
@@ -176,12 +172,13 @@ int checkCtrlPacket(unsigned char* packet) {
   if (packet[PACKET_CTRL_IX] == PACKET_CTRL_END)
     return PACKET_CTRL_END;
 
-  int L1 = packet[PACKET_CTRL_L1_IX];
-  application_layer.file_size = malloc(L1);
-  memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, L1);
-  int L2 = packet[PACKET_CTRL_V1_IX + L1 + 2];
-  application_layer.file_name = malloc(L2);
-  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2, L2);
+  int l1 = packet[PACKET_CTRL_L1_IX];
+  application_layer.file_size = malloc(l1);
+  memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, l1);
+
+  int l2 = packet[PACKET_CTRL_V1_IX + l1 + 2];
+  application_layer.file_name = malloc(l2);
+  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + l1 + 2, l2);
 
   application_layer.file_name = malloc(20);
   application_layer.file_name = "ourFluffyPenguin.gif";
@@ -191,52 +188,43 @@ int checkCtrlPacket(unsigned char* packet) {
 }
 
 int writeToFile(unsigned char* packet) {
-  int L1 = packet[PACKET_DATA_LENGTH_LSB_IX];
-  int L2 = packet[PACKET_DATA_LENGTH_MSB_IX];
+  int l1 = packet[PACKET_DATA_LENGTH_LSB_IX];
+  int l2 = packet[PACKET_DATA_LENGTH_MSB_IX];
 
-  int k = (256 * L2) + L1;
+  int k = (256 * l2) + l1;
   unsigned char file_data[k];
 
   memcpy(file_data, packet + PACKET_DATA_START_IX, k);
 
-  return write(application_layer.file_descriptor, file_data,
-                 sizeof(file_data));
+  return write(application_layer.file_descriptor, file_data, sizeof(file_data));
 }
 
 int communicate(char* port, char* file_name) {
   init(file_name, port);
 
   if (application_layer.status == TRANSMITER) {
-    // get size file
     unsigned char buf[application_layer.max_size_read];
 
     sendCtrlPacket(PACKET_CTRL_START);
 
     unsigned char seq_num = 0;
-    int c; 
-    while ((c = read(application_layer.file_descriptor, buf,
-                 application_layer.max_size_read)) > 0) {
-      sendDataPacket(buf, seq_num, c);
+    int n;
+    while ((n = read(application_layer.file_descriptor, buf,
+                     application_layer.max_size_read)) > 0) {
+      sendDataPacket(buf, seq_num, n);
       seq_num++;
     }
-    sleep(9);
 
+    sleep(9);
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
-
     for (;;) {
       unsigned char* packet = llread();
 
-      if (packet == NULL)
-        continue;
-
       int ctrl_byte = checkCtrlPacket(packet);
+      if (ctrl_byte == PACKET_CTRL_START) continue;
+      else if (ctrl_byte == PACKET_CTRL_END) break;
 
-      if (ctrl_byte == PACKET_CTRL_START)
-        continue;
-      else if (ctrl_byte == PACKET_CTRL_END)
-        break;
-      
       writeToFile(packet);
     }
   }

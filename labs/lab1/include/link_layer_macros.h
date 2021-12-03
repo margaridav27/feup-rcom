@@ -1,5 +1,5 @@
-#ifndef PHYSICAL_LAYER_MACROS_H
-#define PHYSICAL_LAYER_MACROS_H
+#ifndef LINK_LAYER_MACROS_H
+#define LINK_LAYER_MACROS_H
 
 #define BIT(n) (0x01 << (n))
 
