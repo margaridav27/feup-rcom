@@ -55,7 +55,6 @@ int openFile() {
 }
 
 int init(char* file_name, char* port) {
-  // (void) signal(SIGALRM, handler);
   setupAlarm();
 
   application_layer.max_size_read = 100;
