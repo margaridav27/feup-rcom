@@ -1,6 +1,6 @@
 {
     "files.associations": {
-        "physical_layer_macros.h": "c",
+        "link_layer_macros.h": "c",
         "array": "c",
         "string_view": "c",
         "initializer_list": "c",

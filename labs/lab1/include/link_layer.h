@@ -1,5 +1,5 @@
-#ifndef PHYSICAL_LAYER_H
-#define PHYSICAL_LAYER_H
+#ifndef LINK_LAYER_H
+#define LINK_LAYER_H
 
 #define MAX_SIZE 100
 

@@ -1,6 +1,6 @@
 #include "../include/application_layer.h"
 #include "../include/application_layer_macros.h"
-#include "../include/physical_layer.h"
+#include "../include/link_layer.h"
 #include "../include/alarm.h"
 
 #include <fcntl.h>
@@ -154,9 +154,8 @@ int sendDataPacket(unsigned char* data,
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
-  while(llwrite(packet, 4 + data_size) != 0) {
-    printf("Re-sent I-frame.\n");
-  };
+  while (llwrite(packet, 4 + data_size) != 0)
+    printf("[sendDataPacket] I-frame re-sent.\n\n");
 
   return 0;
 }

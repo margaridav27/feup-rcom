@@ -1,11 +1,11 @@
-#include "../include/physical_layer.h"
+#include "../include/link_layer.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include "../include/physical_layer_macros.h"
+#include "../include/link_layer_macros.h"
 #include "../include/serial_port.h"
 
 enum state_t { START, FLAG_RCV, A_RCV, C_RCV, BCC_OK, STOP, ERROR };
@@ -240,7 +240,6 @@ int llwrite(unsigned char* packet, int packet_sz) {
       num_bytes_read = readFrame(res, 5);
       if (flag && num_bytes_read != 5) {
         alarm(2);
-        printf("Set alarm\n");
         flag = 0;
       }
     }

@@ -1,5 +1,5 @@
 #include "../include/serial_port.h"
-#include "../include/physical_layer.h"
+#include "../include/link_layer.h"
 
 #include <fcntl.h>
 #include <signal.h>
@@ -40,7 +40,7 @@ int setupSerialPort() {
     return -1;
   }
 
-  printf("New termios structure set.\n\n");
+  printf("[setupSerialPort] New termios structure set.\n\n");
   return 0;
 }
 
