@@ -133,6 +133,7 @@ int sendCtrlPacket(unsigned char ctrl) {
       file_name_param.length;
   memcpy(packet + PACKET_CTRL_V1_IX + file_size_param.length + 2,
          file_name_param.value, file_name_param.length);
+  printf("[Application Layer] Control Packet sent.\n\n");
 
   return llwrite(packet, packet_sz);
 }
@@ -153,8 +154,10 @@ int sendDataPacket(unsigned char* data,
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
+  printf("[Application Layer] Packet %d sent.\n\n", seq_num);
+
   while (llwrite(packet, 4 + data_size) != 0)
-    printf("[sendDataPacket] I-frame re-sent.\n\n");
+    printf("[Application Layer] Packet %d re-sent.\n\n", seq_num);
 
   return 0;
 }
@@ -171,10 +174,17 @@ int checkCtrlPacket(unsigned char* packet) {
 
   if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END &&
       packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
+    {
+      printf("[Application Layer] Packet %d received.\n\n", packet[PACKET_DATA_SEQ_NUM_IX]);
     return 1;
+  }
 
   if (packet[PACKET_CTRL_IX] == PACKET_CTRL_END)
+    {
+    printf("[Application Layer] Control Packet END received.\n\n");
+
     return PACKET_CTRL_END;
+    }
 
   int L1 = packet[PACKET_CTRL_L1_IX];
   application_layer.file_size = malloc(L1);
@@ -186,6 +196,8 @@ int checkCtrlPacket(unsigned char* packet) {
   application_layer.file_name = malloc(20);
   application_layer.file_name = "ourFluffyPenguin.gif";
   openFile();
+
+  printf("[Application Layer] Control Packet START received.\n\n");
 
   return PACKET_CTRL_START;
 }
@@ -212,18 +224,17 @@ int communicate(char* port, char* file_name) {
 
     sendCtrlPacket(PACKET_CTRL_START);
 
-    unsigned char seq_num = 0;
+    int seq_num = 0;
     int c; 
     while ((c = read(application_layer.file_descriptor, buf,
                  application_layer.max_size_read)) > 0) {
       sendDataPacket(buf, seq_num, c);
       seq_num++;
     }
-    sleep(9);
+    sleep(1);
 
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
-
     for (;;) {
       unsigned char* packet = llread();
 

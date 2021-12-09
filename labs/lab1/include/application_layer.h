@@ -12,6 +12,4 @@ int sendDataPacket(unsigned char* data,
 
 int communicate(char* filename, char* port);
 
-void end(unsigned char* filename, unsigned char* port);
-
 #endif
