@@ -348,7 +348,7 @@ unsigned char* llread() {
 }
 
 void setupLinkLayer() {
-  link_layer.baud_rate = 0x38400;
+  link_layer.baud_rate = 0x19200;
 
   link_layer.sequence_num = 0x00;
   link_layer.timeout = 1;
