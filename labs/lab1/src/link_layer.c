@@ -278,6 +278,7 @@ unsigned char* llread() {
 
 
   /* read and check header validity */
+  usleep(100);
   while (msg_state != BCC_OK && msg_state != ERROR) {
     num_bytes_read = readFrame(i_frame_ix, 1);
 
