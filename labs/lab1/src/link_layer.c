@@ -228,16 +228,11 @@ int llwrite(unsigned char* packet, int packet_sz) {
   stuffing(frame, &frame_sz);
 
   counter++;
-  if (counter == 5 || counter == 6 || counter == 19 || counter == 10 || counter == 11 || counter == 20 || counter == 107 || counter == 108 || counter == 111)
-   {
-    printf("entrei\n");
-    frame[9] = 0xFF;
-     }
 
   int num_bytes_read = 0;
   unsigned char res[5];
 
-
+  
   for (;;) {
                             
     writeFrame(frame, frame_sz);
@@ -293,7 +288,7 @@ unsigned char* llread() {
   }
 
   /* read an check data validity */
-  unsigned char i_frame_data[200];
+  unsigned char i_frame_data[2* 300];
   int data_ix = 0;
 
   for (;;) {
@@ -311,10 +306,11 @@ unsigned char* llread() {
     printf(
         "[Link Layer] I-frame with errors in header received from "
         "transmitter.\n\n");
+        /*
     assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
                       ctrl_frame);
-    printf("[Link Layer] REJ sent to transmitter.\n\n");
-  } else {
+    printf("[Link Layer] REJ sent to transmitter.\n\n");*/
+  }
     destuffing(i_frame_data, &frame_data_sz);
 
     unsigned char bcc2_after_destuffing = getBCC2(i_frame_data, frame_data_sz);
@@ -346,7 +342,6 @@ unsigned char* llread() {
 
       printf("[Link Layer] RR sent to transmitter.\n\n");
     }
-  }
 
   writeFrame(ctrl_frame, 5);
   return buffer;
@@ -354,6 +349,7 @@ unsigned char* llread() {
 
 void setupLinkLayer() {
   link_layer.baud_rate = BAUDRATE;
+
   link_layer.sequence_num = 0x00;
   link_layer.timeout = 1;
   link_layer.num_transmissions = 3;

@@ -4,13 +4,17 @@
 #include "../include/alarm.h"
 
 #include <fcntl.h>
+#include <math.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>  // for gettimeofday()
 #include <unistd.h>
-#include <math.h>
-#include <signal.h>
+
+struct timeval t1, t2;
+double elapsedTime;
 
 typedef struct {
   unsigned char type;
@@ -57,13 +61,17 @@ int openFile() {
 int init(char* file_name, char* port) {
   setupAlarm();
 
-  application_layer.max_size_read = 100;
+  application_layer.max_size_read = 200;
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
     openFile();
   }
 
   llopen(port, application_layer.status);
+
+
+  // start timer
+  gettimeofday(&t1, NULL);
   return 0;
 }
 
@@ -157,7 +165,9 @@ int sendDataPacket(unsigned char* data,
   printf("[Application Layer] Packet %d sent.\n\n", seq_num);
 
   while (llwrite(packet, 4 + data_size) != 0)
+    {
     printf("[Application Layer] Packet %d re-sent.\n\n", seq_num);
+    }
 
   return 0;
 }
@@ -231,7 +241,6 @@ int communicate(char* port, char* file_name) {
       sendDataPacket(buf, seq_num, c);
       seq_num++;
     }
-    sleep(1);
 
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
@@ -253,5 +262,13 @@ int communicate(char* port, char* file_name) {
   }
 
   llclose();
+  // stop timer
+  gettimeofday(&t2, NULL);
+
+  // compute and print the elapsed time in millisec
+  elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;
+  elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;  // us to ms
+  // sec to ms
+  printf("%f elapsed time\n", elapsedTime);
   return 0;
 }
