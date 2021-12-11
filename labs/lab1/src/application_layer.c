@@ -61,7 +61,7 @@ int openFile() {
 int init(char* file_name, char* port) {
   setupAlarm();
 
-  application_layer.max_size_read = 2000;
+  application_layer.max_size_read = 5000;
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
     openFile();
