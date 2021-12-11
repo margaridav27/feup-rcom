@@ -288,7 +288,7 @@ unsigned char* llread() {
   }
 
   /* read an check data validity */
-  unsigned char i_frame_data[2* 300];
+  unsigned char i_frame_data[2000];
   int data_ix = 0;
 
   for (;;) {
