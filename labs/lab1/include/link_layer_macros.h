@@ -25,6 +25,6 @@
 
 #define BCC1(addr, ctrl) ((addr) ^ (ctrl)) /* protection field */
 
-#define BAUDRATE 0xB38400
+#define BAUDRATE B38400
 
 #endif

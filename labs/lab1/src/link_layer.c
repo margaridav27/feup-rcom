@@ -227,8 +227,6 @@ int llwrite(unsigned char* packet, int packet_sz) {
 
   stuffing(frame, &frame_sz);
 
-  counter++;
-
   int num_bytes_read = 0;
   unsigned char res[5];
 
@@ -343,8 +341,17 @@ unsigned char* llread() {
       printf("[Link Layer] RR sent to transmitter.\n\n");
     }
 
-  writeFrame(ctrl_frame, 5);
-  return buffer;
+/*
+    counter++;
+    if (counter % 7 == 0)
+      assembleCtrlFrame(ADDR_CR_RE, CTRL_REJ(link_layer.sequence_num),
+                        ctrl_frame);
+    else
+      assembleCtrlFrame(ADDR_CR_RE, CTRL_RR(link_layer.sequence_num),
+                        ctrl_frame);
+*/
+    writeFrame(ctrl_frame, 5);
+    return buffer;
 }
 
 void setupLinkLayer() {
