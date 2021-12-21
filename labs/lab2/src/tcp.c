@@ -6,7 +6,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
-#include "../headers/parser.h"
+#include "../include/parser.h"
 
 
 #define SERVER_PORT 6000
@@ -43,12 +43,12 @@ void get_ip(char *host, char **ip)
     return 0;
 }
 
-void transfer(struct Data data, char* ip) {
+void transfer(struct Data data, char** ip) {
 
 }
 
-void client (){
-
+//função do stor
+void client () {
     int sockfd;
     struct sockaddr_in server_addr;
     char buf[] = "Mensagem de teste na travessia da pilha TCP/IP\n";

@@ -3,7 +3,7 @@
 
 void get_ip(char *host, char **ip);
 
-void transfer(struct Data data, char* ip);
+void transfer(struct Data data, char** ip);
 
 void client ();
 

@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "../headers/tcp.h"
-#include "../headers/parser.h"
+#include "../include/tcp.h"
+#include "../include/parser.h"
 
 
 
