@@ -1,7 +1,7 @@
 #include "../include/application_layer.h"
-#include "../include/alarm.h"
 #include "../include/application_layer_macros.h"
 #include "../include/link_layer.h"
+#include "../include/alarm.h"
 
 #include <fcntl.h>
 #include <math.h>
@@ -10,7 +10,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>  // for gettimeofday()
 #include <unistd.h>
+
+struct timeval t1, t2;
+double elapsedTime;
 
 typedef struct {
   unsigned char type;
@@ -30,9 +34,11 @@ application_layer_t application_layer;
 
 int openFile() {
   const char* filename = application_layer.file_name;
-
+  
   if (application_layer.status == TRANSMITER) {
-    application_layer.file_descriptor = open(filename, O_RDONLY | O_NOCTTY);
+    application_layer.file_descriptor =
+        open(filename,
+             O_RDONLY | O_NOCTTY );  // será que tem que ser fopen?
 
     if (application_layer.file_descriptor < 0) {
       perror("open file");
@@ -40,7 +46,8 @@ int openFile() {
     }
   } else {
     application_layer.file_descriptor =
-        open(filename, O_WRONLY | O_NOCTTY | O_CREAT | O_NONBLOCK);
+        open(filename,
+             O_WRONLY | O_NOCTTY | O_CREAT |O_NONBLOCK);  // será que tem que ser fopen?
 
     if (application_layer.file_descriptor < 0) {
       perror("open file");
@@ -51,25 +58,20 @@ int openFile() {
   return 0;
 }
 
-void setID(int id) {
-  if (id) {
-    application_layer.status = RECEIVER;
-  } else {
-    application_layer.status = TRANSMITER;
-  }
-}
-
 int init(char* file_name, char* port) {
   setupAlarm();
 
   application_layer.max_size_read = 100;
-
   if (application_layer.status == TRANSMITER) {
     application_layer.file_name = file_name;
     openFile();
   }
 
   llopen(port, application_layer.status);
+
+
+  // start timer
+  gettimeofday(&t1, NULL);
   return 0;
 }
 
@@ -82,7 +84,7 @@ int sendCtrlPacket(unsigned char ctrl) {
 
   ctrl_packet_parameter_t file_size_param = {
       .type = PACKET_DATA_FILE_SIZE,
-      .length = (int)ceil((float)fsize / 255),
+      .length = (int)ceil((float) log(fsize) /8),
       .value = malloc(file_size_param.length * sizeof(unsigned char))};
 
   if (file_size_param.value == NULL) {
@@ -113,7 +115,8 @@ int sendCtrlPacket(unsigned char ctrl) {
     return -1;
   }
 
-  memcpy(file_name_param.value, application_layer.file_name, fname);
+  memcpy(file_name_param.value, application_layer.file_name,
+         fname);
 
   int packet_sz = 1 + 2 + 2 + fname + file_size_param.length;
   packet = malloc(packet_sz);
@@ -138,11 +141,13 @@ int sendCtrlPacket(unsigned char ctrl) {
       file_name_param.length;
   memcpy(packet + PACKET_CTRL_V1_IX + file_size_param.length + 2,
          file_name_param.value, file_name_param.length);
+  printf("[Application Layer] Control Packet sent.\n\n");
 
   return llwrite(packet, packet_sz);
 }
 
-int sendDataPacket(unsigned char* data, unsigned char seq_num, int read_sz) {
+int sendDataPacket(unsigned char* data,
+                     unsigned char seq_num, int read_sz) {
   unsigned char data_size = read_sz;
   unsigned char packet[4 + data_size];
 
@@ -157,76 +162,113 @@ int sendDataPacket(unsigned char* data, unsigned char seq_num, int read_sz) {
   packet[PACKET_DATA_LENGTH_LSB_IX] = data_size & 0x00FF;
   memcpy(packet + PACKET_DATA_START_IX, data, data_size);
 
-  while (llwrite(packet, 4 + data_size) != 0) printf("[sendDataPacket] I-frame sent.\n\n");
-  
+  printf("[Application Layer] Packet %d sent.\n\n", seq_num);
+
+  while (llwrite(packet, 4 + data_size) != 0)
+    {
+    printf("[Application Layer] Packet %d re-sent.\n\n", seq_num);
+    }
+
   return 0;
 }
 
+void setID(int id) {
+  if (id) {
+    application_layer.status = RECEIVER;
+  } else {
+    application_layer.status = TRANSMITER;
+  }
+}
+
 int checkCtrlPacket(unsigned char* packet) {
+
   if (packet[PACKET_CTRL_IX] != PACKET_CTRL_END &&
       packet[PACKET_CTRL_IX] != PACKET_CTRL_START)
+    {
+      printf("[Application Layer] Packet %d received.\n\n", packet[PACKET_DATA_SEQ_NUM_IX]);
     return 1;
+  }
 
   if (packet[PACKET_CTRL_IX] == PACKET_CTRL_END)
+    {
+    printf("[Application Layer] Control Packet END received.\n\n");
+
     return PACKET_CTRL_END;
+    }
 
-  int l1 = packet[PACKET_CTRL_L1_IX];
-  application_layer.file_size = malloc(l1);
-  memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, l1);
-
-  int l2 = packet[PACKET_CTRL_V1_IX + l1 + 2];
-  application_layer.file_name = malloc(l2);
-  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + l1 + 2, l2);
+  int L1 = packet[PACKET_CTRL_L1_IX];
+  application_layer.file_size = malloc(L1);
+  memcpy(application_layer.file_size, packet + PACKET_CTRL_V1_IX, L1);
+  int L2 = packet[PACKET_CTRL_V1_IX + L1 + 2];
+  application_layer.file_name = malloc(L2);
+  memcpy(application_layer.file_name, packet + PACKET_CTRL_V1_IX + L1 + 2, L2);
 
   application_layer.file_name = malloc(20);
   application_layer.file_name = "ourFluffyPenguin.gif";
   openFile();
 
+  printf("[Application Layer] Control Packet START received.\n\n");
+
   return PACKET_CTRL_START;
 }
 
 int writeToFile(unsigned char* packet) {
-  int l1 = packet[PACKET_DATA_LENGTH_LSB_IX];
-  int l2 = packet[PACKET_DATA_LENGTH_MSB_IX];
+  int L1 = packet[PACKET_DATA_LENGTH_LSB_IX];
+  int L2 = packet[PACKET_DATA_LENGTH_MSB_IX];
 
-  int k = (256 * l2) + l1;
+  int k = (256 * L2) + L1;
   unsigned char file_data[k];
 
   memcpy(file_data, packet + PACKET_DATA_START_IX, k);
 
-  return write(application_layer.file_descriptor, file_data, sizeof(file_data));
+  return write(application_layer.file_descriptor, file_data,
+                 sizeof(file_data));
 }
 
 int communicate(char* port, char* file_name) {
   init(file_name, port);
 
   if (application_layer.status == TRANSMITER) {
+    // get size file
     unsigned char buf[application_layer.max_size_read];
 
     sendCtrlPacket(PACKET_CTRL_START);
 
-    unsigned char seq_num = 0;
-    int n;
-    while ((n = read(application_layer.file_descriptor, buf,
-                     application_layer.max_size_read)) > 0) {
-      sendDataPacket(buf, seq_num, n);
+    int seq_num = 0;
+    int c; 
+    while ((c = read(application_layer.file_descriptor, buf,
+                 application_layer.max_size_read)) > 0) {
+      sendDataPacket(buf, seq_num, c);
       seq_num++;
     }
 
-    sleep(9);
     sendCtrlPacket(PACKET_CTRL_END);
   } else {
     for (;;) {
       unsigned char* packet = llread();
 
-      int ctrl_byte = checkCtrlPacket(packet);
-      if (ctrl_byte == PACKET_CTRL_START) continue;
-      else if (ctrl_byte == PACKET_CTRL_END) break;
+      if (packet == NULL)
+        continue;
 
+      int ctrl_byte = checkCtrlPacket(packet);
+
+      if (ctrl_byte == PACKET_CTRL_START)
+        continue;
+      else if (ctrl_byte == PACKET_CTRL_END)
+        break;
+      
       writeToFile(packet);
     }
   }
 
   llclose();
+  // stop timer
+  gettimeofday(&t2, NULL);
+
+  // compute and print the elapsed time in millisec
+  elapsedTime = (t2.tv_sec - t1.tv_sec) * 1000.0;
+  elapsedTime += (t2.tv_usec - t1.tv_usec) / 1000.0;  // us to ms
+  // sec to ms
+  printf("%f elapsed time\n", elapsedTime);
   return 0;
 }

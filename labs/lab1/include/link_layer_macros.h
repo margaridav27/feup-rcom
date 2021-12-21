@@ -1,5 +1,5 @@
-#ifndef LINK_LAYER_MACROS_H
-#define LINK_LAYER_MACROS_H
+#ifndef LINK_LAYER_MACROS
+#define LINK_LAYER_MACROS
 
 #define BIT(n) (0x01 << (n))
 
@@ -24,7 +24,5 @@
   0x01 | (((r) % 2) ? BIT(7) : 0x00) /* receiver reject - negative ACK */
 
 #define BCC1(addr, ctrl) ((addr) ^ (ctrl)) /* protection field */
-
-#define BAUDRATE 0xB38400
 
 #endif

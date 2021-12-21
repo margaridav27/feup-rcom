@@ -6,14 +6,13 @@
 typedef enum { TRANSMITER, RECEIVER } flag_t;
 
 typedef struct {
-  char port[20];
-  int fd;
+  char port[20];                        //serial's port name
+  int fd;                               //serial's port file descriptor
   int baud_rate;
   unsigned char sequence_num;
   unsigned int timeout;
   unsigned int num_transmissions;
-  char frame[MAX_SIZE];
-  flag_t status;
+  flag_t status;                        //TRANSMITTER or RECEIVER
 } link_layer_t;
 
 int llopen(char* port, flag_t flag);

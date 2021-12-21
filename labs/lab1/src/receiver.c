@@ -15,6 +15,7 @@ int checkArgs(int argc, char** argv) {
 }
 
 int main(int argc, char** argv) {
+
   if (checkArgs(argc, argv) == -1)
     return -1;
 

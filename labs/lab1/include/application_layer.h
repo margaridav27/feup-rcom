@@ -11,6 +11,4 @@ int sendDataPacket(unsigned char* data, unsigned char seq_num, int read_sz);
 
 int communicate(char* filename, char* port);
 
-void end(unsigned char* filename, unsigned char* port);
-
 #endif
