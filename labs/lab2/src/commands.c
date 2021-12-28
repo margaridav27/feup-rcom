@@ -1,23 +1,19 @@
-#include <stdlib.h>
 #include "../include/commands.h"
+#include <stdlib.h>
 
-
-int sendCommand(int socketfd, char *cmd)
-{
-
+int sendCommand(int socketfd, char* cmd) {
   size_t cmd_len = strlen(cmd);
 
   if (write(socketfd, cmd, cmd_len) != cmd_len) {
     fprintf(stderr, "error sendComand()");
     return -1;
-    }
+  }
 
-    return 0;
+  return 0;
 }
 
-//TODO ERRORS
-void readResponse(int socketfd)
-{
+// TODO ERRORS
+void readResponse(int socketfd) {
   FILE* file = fdopen(socketfd, "r");
 
   if (file == NULL) {
@@ -36,12 +32,11 @@ void readResponse(int socketfd)
       break;
     }
   }
-    return 0;
+  return 0;
 }
 
-//TODO  related to previous missing all
-void updateIpPort(int socketfd, char *ip, int *port)
-{
+// TODO  related to previous missing all
+void updateIpPort(int socketfd, char* ip, int* port) {
   FILE* file = fdopen(socketfd, "r");
 
   if (file == NULL) {
@@ -63,7 +58,7 @@ void updateIpPort(int socketfd, char *ip, int *port)
   strcpy(ip3, strtok(NULL, ","));
   strcpy(ip4, strtok(NULL, ","));
 
-  snprintf(ip,17, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
+  snprintf(ip, 17, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
 
   strcpy(port1, strtok(NULL, ","));
   strcpy(port2, strtok(NULL, ")"));
