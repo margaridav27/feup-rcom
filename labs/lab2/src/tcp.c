@@ -1,117 +1,102 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include "../include/parser.h"
+#include <sys/socket.h>
 #include "../include/commands.h"
+#include "../include/tcp.h"
 
-#define SERVER_PORT 6000
-#define SERVER_ADDR "192.168.28.96"
 
-void get_ip(data *data)
-{
-    struct hostent *h;
-    char *ip;
+void get_ip(Data* data) {
+  struct hostent* h;
+  char* ip;
 
-    /**
- * The struct hostent (host entry) with its terms documented
+  if ((h = gethostbyname(data->host)) == NULL) {
+    fprintf(stderr, "ERROR get_ip(): Unable to get ip address for %s",
+            data->host);
+    exit(-1);
+  }
 
-    struct hostent {
-        char *h_name;    // Official name of the host.
-        char **h_aliases;    // A NULL-terminated array of alternate names for the host.
-        int h_addrtype;    // The type of address being returned; usually AF_INET.
-        int h_length;    // The length of the address in bytes.
-        char **h_addr_list;    // A zero-terminated array of network addresses for the host.
-        // Host addresses are in Network Byte Order.
-    };
+  ip = inet_ntoa(*((struct in_addr*)h->h_addr_list[0]));
 
-    #define h_addr h_addr_list[0]	The first address in h_addr_list.
-*/
-    if ((h = gethostbyname(data->host)) == NULL)
-    {
-        fprintf(stderr, "ERROR get_ip(): Unable to get ip address for %s", host);
-        exit(-1);
-    }
+  printf("Host name  : %s\n", h->h_name);
+  printf("IP Address : %s\n", inet_ntoa(*((struct in_addr*)h->h_addr_list[0])));
 
-    *ip = inet_ntoa(*((struct in_addr *)h->h_addr));
-    printf("Host name  : %s\n", h->h_name);
-    printf("IP Address : %s\n", inet_ntoa(*((struct in_addr *)h->h_addr)));
 
-    strcpy(data->ip, ip);
-    return 0;
+  strcpy(data->ip, ip);
+  strcpy(data->host, h->h_name);
+  return 0;
 }
 
-void downloadFile(data *data)
-{
+void execute(Data* data) {
+  int socketfd;
 
-    int socketfd;
-    connect(data->ip, 21, &socketfd);
+  connection(data->ip, 21, &socketfd);
 
-    login(socketfd, data->user, data->password);
+  login(socketfd, data->user, data->password);
 
-    setPASV(&socketfd, &data);
+  setPASV(&socketfd, &data);
 
-    download(socketfd);
+  // download(socketfd);
 
-    disconnect(socketfd);
+  //disconnect(socketfd);
 }
 
-void connect(char *ip, int port, int *socketfd)
+void connection(char *ip, int port, int *socketfd)
 {
-    struct sockaddr_in server_addr;
+  struct sockaddr_in server_addr;
+  /*server address handling*/
+  bzero((char*)&server_addr, sizeof(server_addr));
+  server_addr.sin_family = AF_INET;
+  server_addr.sin_addr.s_addr = inet_addr(ip); /*32 bit Internet address network byte ordered*/
+  server_addr.sin_port = htons(port); /*server TCP port must be network byte ordered */
 
-    /*server address handling*/
-    bzero((char *)&server_addr, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDR); /*32 bit Internet address network byte ordered*/
-    server_addr.sin_port = htons(SERVER_PORT);            /*server TCP port must be network byte ordered */
-
-    /*open a TCP socket*/
-    if ((*sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        perror("socket()");
-        exit(-1);
+  /*open a TCP socket*/
+  if ((*socketfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    perror("socket()");
+    exit(-1);
     }
     /*connect to the server*/
-    if (connect(*sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
-        perror("connect()");
-        exit(-1);
+    if (connect(*socketfd, (struct sockaddr*)&server_addr,
+                sizeof(server_addr)) < 0) {
+      perror("connect()");
+      exit(-1);
     }
+    readResponse(*socketfd);
+    
 }
 
 void login(int socketfd, char *user, char *password)
 {
-    char *cmd = malloc(6 + strlen(user));
+  char* cmd = malloc(8 + strlen(user));
 
-    sprintf(cmd, "user %s\n", user);
-    sendCommand(socketfd, cmd);
-    readResponse();
+  sprintf(cmd, "user %s\n", user);
+  sendCommand(socketfd, cmd);
+  readResponse(socketfd);
 
-    realloc(cmd, 5 + strlen(password));
+  realloc(cmd, 8 + strlen(password));
+  sprintf(cmd, "pass %s\n", password);
 
-    sendCommand(socketfd, cmd);
-    readResponse();
+  sendCommand(socketfd, cmd);
+  readResponse(socketfd);
 
-    free(cmd);
+  free(cmd);
 }
 
-void setPASV(int *socketfd, data *data)
-{
-    char cmd[6];
-    strcpy(cmd, "pasv\n");
+void setPASV(int* socketfd, Data* data) {
+  char cmd[6];
+  strcpy(cmd, "pasv\n");
 
-    sendCommand(socketfd, cmd);
+  sendCommand(*socketfd, cmd);
 
-    char *ip;
-    int port;
-    updateIpPort(ip, &port);
-
-    connect(ip, port, socketfd);
+  char* ip = malloc(17);
+  int port;
+  updateIpPort(*socketfd, ip, &port);
+  close(*socketfd);
+  connection(ip, port, socketfd);
 }
 
 void download(int socketfd, char *file)

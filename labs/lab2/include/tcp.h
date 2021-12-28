@@ -1,19 +1,21 @@
 #ifndef _TCP_H_
 #define _TCP_H_
 
+#include "../include/parser.h"
+
 /**
  * @brief Get the ip object
  * 
  * @param data 
  */
-void get_ip(data *data);
+void get_ip(Data* data);
 
 /**
  * @brief 
  * 
  * @param data 
  */
-void downloadFile(data *data);
+void execute(Data* data);
 
 /**
  * @brief 
@@ -22,7 +24,7 @@ void downloadFile(data *data);
  * @param port 
  * @param socketfd 
  */
-void connect(char *ip, int port, int *socketfd);
+void connection(char *ip, int port, int *socketfd);
 
 /**
  * @brief 
@@ -39,7 +41,7 @@ void login(int socketfd, char *user, char *password);
  * @param socketfd 
  * @param data 
  */
-void setPASV(int *socketfd, data *data);
+void setPASV(int* socketfd, Data* data);
 
 /**
  * @brief 

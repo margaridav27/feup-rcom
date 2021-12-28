@@ -10,7 +10,7 @@
  * @param socketfd 
  * @param cmd 
  */
-void sendCommand(int socketfd, char *cmd);
+int sendCommand(int socketfd, char *cmd);
 
 /**
  * @brief 
@@ -18,7 +18,7 @@ void sendCommand(int socketfd, char *cmd);
  * @param socketfd 
  * @param cmd 
  */
-void readResponse(int socketfd, char *cmd);
+void readResponse(int socketfd);
 
 /**
  * @brief 
@@ -26,6 +26,6 @@ void readResponse(int socketfd, char *cmd);
  * @param ip 
  * @param port 
  */
-void updateIpPort(char *ip, int *port);
+void updateIpPort(int socketfd, char *ip, int *port);
 
 #endif

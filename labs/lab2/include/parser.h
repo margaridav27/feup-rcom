@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define FTP "ftp://"
+#define FTP "ftp:"
 
-typedef struct Data
+typedef struct 
 {
     char user[256];
     char password[256];
@@ -15,7 +15,7 @@ typedef struct Data
     char file[256];
     char ip[128];
 
-} data;
+} Data;
 
 /**
  * @brief parses the URL received by arguments into the data struct
@@ -23,6 +23,6 @@ typedef struct Data
  * @param data returns struct filled with correct data
  * @param url full string received in arguments
  */
-void parse_url(data *data, char *url);
+void parse_url(Data* data, char* url);
 
 #endif

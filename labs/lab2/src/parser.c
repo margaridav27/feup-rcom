@@ -1,28 +1,31 @@
 #include "../include/parser.h"
 #include <stdlib.h>
 
-void parse_url(data *data, char *url)
-{
-    char *ftp = strtok(url, "/");
-    char *url = strtok(url, "/");
-    strcpy(data->file, strtok(NULL, ""));
+void parse_url(Data* data, char* url) {
+  char* ftp = strtok(url, "/");
+  char *user_pass_host = strtok(NULL, "/");
+  
+  strcpy(data->file, strtok(NULL, ""));
 
-    if (!strcmp(ftp, FTP))
-    {
-        fprintf(stderr, "invalid url ftp://\n");
-        exit(-1);
+  if (strcmp(ftp, FTP) != 0) {
+    fprintf(stderr, "invalid url ftp://\n");
+    exit(-1);
     }
 
-    strcpy(data->user, strtok(url, ":"));
+    strcpy(data->user, strtok(user_pass_host, ":"));
+    char* pass = strtok(NULL, "@");
 
-    strcpy(data->password, strtok(NULL, "@"));
-
-    if (data->password == NULL)
+    if (pass == NULL)
     {
-        strcpy(data->user, "anonymous");
-        strcpy(data->password, "something");
-    }
+      char user[10] = "anonymous";
+      char password[10] = "something";
 
-    printf("rest url: % s", url);
-    strcpy(data->host, url);
+      strcpy(data->user, user);
+      strcpy(data->password, password);
+      strcpy(data->host, user_pass_host);
+
+    } else {
+      strcpy(data->password, pass);
+      strcpy(data->host, strtok(NULL, ""));
+    }
 }
