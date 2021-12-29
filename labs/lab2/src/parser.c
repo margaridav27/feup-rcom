@@ -3,8 +3,8 @@
 
 void parse_url(Data* data, char* url) {
   char* ftp = strtok(url, "/");
-  char *user_pass_host = strtok(NULL, "/");
-  
+  char* user_pass_host = strtok(NULL, "/");
+
   strcpy(data->path, strtok(NULL, ""));
   getfilename(data);
 
@@ -24,10 +24,10 @@ void parse_url(Data* data, char* url) {
     strcpy(data->password, password);
     strcpy(data->host, user_pass_host);
 
-    } else {
-      strcpy(data->password, pass);
-      strcpy(data->host, strtok(NULL, ""));
-    }
+  } else {
+    strcpy(data->password, pass);
+    strcpy(data->host, strtok(NULL, ""));
+  }
 }
 
 void getfilename(Data* data) {

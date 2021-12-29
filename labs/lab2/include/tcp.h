@@ -5,56 +5,58 @@
 
 /**
  * @brief Get the ip object
- * 
- * @param data 
+ *
+ * @param data
  */
 void get_ip(Data* data);
 
 /**
- * @brief 
- * 
- * @param data 
+ * @brief
+ *
+ * @param data
  */
 void execute(Data data);
 
 /**
- * @brief 
- * 
- * @param ip 
- * @param port 
- * @param socketfd 
+ * @brief
+ *
+ * @param ip
+ * @param port
+ * @param socketfd
  */
-void connection(char *ip, int port, int *socketfd);
+void connection(char* ip, int port, int* socketfd);
 
 /**
- * @brief 
- * 
- * @param socketfd 
- * @param user 
- * @param password 
+ * @brief
+ *
+ * @param socketfd
+ * @param user
+ * @param password
  */
-void login(int socketfd, char *user, char *password);
+void login(int socketfd, char* user, char* password);
 
 /**
- * @brief 
- * 
- * @param socketfd 
- * @param data 
+ * @brief
+ *
+ * @param socketfd
+ * @return int
  */
 int setPASV(int* socketfd);
 
 /**
- * @brief 
- * 
- * @param socketfd 
- * @param file 
+ * @brief
+ *
+ * @param socket_A
+ * @param socket_B
+ * @param data
  */
 void download(int socket_A, int socket_B, Data data);
 
 /**
- * @brief 
- * 
- * @param socketfd 
+ * @brief
+ *
+ * @param socketfd
  */
 void disconnect(int socketfd);
+
 #endif

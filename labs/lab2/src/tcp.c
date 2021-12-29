@@ -46,8 +46,7 @@ void execute(Data data) {
   close(socket_B);
 }
 
-void connection(char *ip, int port, int *socket_fd)
-{
+void connection(char* ip, int port, int* socket_fd) {
   struct sockaddr_in server_addr;
 
   /*server address handling*/
@@ -62,19 +61,18 @@ void connection(char *ip, int port, int *socket_fd)
   if ((*socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket()");
     exit(-1);
-    }
+  }
 
-    /*connect to the server*/
-    if (connect(*socket_fd, (struct sockaddr*)&server_addr,
-                sizeof(server_addr)) < 0) {
-      perror("connect()");
-      exit(-1);
-    }
-    printf("telnet %s %d\n", ip, port);
+  /*connect to the server*/
+  if (connect(*socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) <
+      0) {
+    perror("connect()");
+    exit(-1);
+  }
+  printf("telnet %s %d\n", ip, port);
 }
 
-void login(int socket_A, char *user, char *password)
-{
+void login(int socket_A, char* user, char* password) {
   char* cmd = malloc(8 + strlen(user));
 
   sprintf(cmd, "user %s\n", user);
@@ -135,13 +133,12 @@ void save(int socket_B, char* filename) {
   do {
     read_bytes = read(socket_B, buf, BUF_SIZE);
     if (read_bytes > 0)
-     write(fd, buf, read_bytes);
+      write(fd, buf, read_bytes);
   } while (read_bytes > 0);
 
   close(fd);
 }
 
-void disconnect(int socket_A)
-{
-    close(socket_A);
+void disconnect(int socket_A) {
+  close(socket_A);
 }

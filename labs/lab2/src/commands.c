@@ -1,9 +1,7 @@
 #include "../include/commands.h"
 #include <stdlib.h>
 
-
-int sendCommand(int socketfd, char *cmd)
-{
+int sendCommand(int socketfd, char* cmd) {
   size_t cmd_len = strlen(cmd);
 
   printf("%s", cmd);
@@ -16,10 +14,8 @@ int sendCommand(int socketfd, char *cmd)
   return 0;
 }
 
-//TODO ERRORS
-void s_read(int socketfd)
-{
-
+// TODO ERRORS
+void s_read(int socketfd) {
   FILE* file = fdopen(socketfd, "r");
 
   if (file == NULL) {
@@ -27,7 +23,7 @@ void s_read(int socketfd)
     exit(-1);
   }
 
-  char* buf = NULL, code[4];
+  char *buf = NULL, code[4];
   size_t buf_len = 0;
 
   while (getline(&buf, &buf_len, file) >= 0) {
@@ -36,7 +32,7 @@ void s_read(int socketfd)
     if (buf[3] == ' ') {
       memcpy(code, buf, 3);
 
-      if(!strcmp(code, "421"))
+      if (!strcmp(code, "421"))
         exit(0);
       break;
     }
@@ -45,8 +41,7 @@ void s_read(int socketfd)
   return 0;
 }
 
-void s_readPASV(int socketfd, char *ip, int *port)
-{
+void s_readPASV(int socketfd, char* ip, int* port) {
   FILE* file = fdopen(socketfd, "r");
 
   if (file == NULL) {

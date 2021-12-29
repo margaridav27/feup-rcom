@@ -6,22 +6,21 @@
 
 #define FTP "ftp:"
 
-typedef struct 
-{
-    char user[256];
-    char password[256];
-    char host[256];
-    char path[256];
-    char filename[256];
-    char ip[128];
+typedef struct {
+  char user[256];
+  char password[256];
+  char host[256];
+  char path[256];
+  char filename[256];
+  char ip[128];
 
 } Data;
 
 /**
- * @brief parses the URL received by arguments into the data struct
+ * @brief 
  * 
- * @param data returns struct filled with correct data
- * @param url full string received in arguments
+ * @param data 
+ * @param url 
  */
 void parse_url(Data* data, char* url);
 
