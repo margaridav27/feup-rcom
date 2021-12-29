@@ -11,8 +11,8 @@ typedef struct
     char user[256];
     char password[256];
     char host[256];
-    char url[256];
-    char file[256];
+    char path[256];
+    char filename[256];
     char ip[128];
 
 } Data;

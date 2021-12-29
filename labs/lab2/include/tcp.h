@@ -15,7 +15,7 @@ void get_ip(Data* data);
  * 
  * @param data 
  */
-void execute(Data* data);
+void execute(Data data);
 
 /**
  * @brief 
@@ -41,7 +41,7 @@ void login(int socketfd, char *user, char *password);
  * @param socketfd 
  * @param data 
  */
-void setPASV(int* socketfd, Data* data);
+int setPASV(int* socketfd);
 
 /**
  * @brief 
@@ -49,7 +49,7 @@ void setPASV(int* socketfd, Data* data);
  * @param socketfd 
  * @param file 
  */
-void download(int socketfd, char *file);
+void download(int socket_A, int socket_B, Data data);
 
 /**
  * @brief 

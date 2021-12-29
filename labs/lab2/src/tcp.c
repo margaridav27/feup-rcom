@@ -31,23 +31,27 @@ void get_ip(Data* data) {
   return 0;
 }
 
-void execute(Data* data) {
-  int socketfd;
+void execute(Data data) {
+  int socket_A, socket_B;
 
-  connection(data->ip, 21, &socketfd);
+  printf("- Term A\n");
+  connection(data.ip, 21, &socket_A);
+  s_read(socket_A);
 
-  login(socketfd, data->user, data->password);
+  login(socket_A, data.user, data.password);
 
-  setPASV(&socketfd, &data);
+  socket_B = setPASV(&socket_A);
 
-  // download(socketfd);
+  download(socket_A, socket_B, data);
 
-  //disconnect(socketfd);
+  close(socket_A);
+  close(socket_B);
 }
 
-void connection(char *ip, int port, int *socketfd)
+void connection(char *ip, int port, int *socket_fd)
 {
   struct sockaddr_in server_addr;
+
   /*server address handling*/
   bzero((char*)&server_addr, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
@@ -55,80 +59,89 @@ void connection(char *ip, int port, int *socketfd)
   server_addr.sin_port = htons(port); /*server TCP port must be network byte ordered */
 
   /*open a TCP socket*/
-  if ((*socketfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if ((*socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket()");
     exit(-1);
     }
+
     /*connect to the server*/
-    if (connect(*socketfd, (struct sockaddr*)&server_addr,
+    if (connect(*socket_fd, (struct sockaddr*)&server_addr,
                 sizeof(server_addr)) < 0) {
       perror("connect()");
       exit(-1);
     }
-    readResponse(*socketfd);
-    
+    printf("telnet %s %d\n", ip, port);
 }
 
-void login(int socketfd, char *user, char *password)
+void login(int socket_A, char *user, char *password)
 {
   char* cmd = malloc(8 + strlen(user));
 
   sprintf(cmd, "user %s\n", user);
-  sendCommand(socketfd, cmd);
-  readResponse(socketfd);
+  sendCommand(socket_A, cmd);
+  s_read(socket_A);
 
   realloc(cmd, 8 + strlen(password));
-  sprintf(cmd, "pass %s\n", password);
 
-  sendCommand(socketfd, cmd);
-  readResponse(socketfd);
+  sprintf(cmd, "pass %s\n", password);
+  sendCommand(socket_A, cmd);
+  s_read(socket_A);
 
   free(cmd);
 }
 
-void setPASV(int* socketfd, Data* data) {
+int setPASV(int* socket_A) {
   char cmd[6];
   strcpy(cmd, "pasv\n");
 
-  sendCommand(*socketfd, cmd);
+  sendCommand(*socket_A, cmd);
 
   char* ip = malloc(17);
-  int port;
-  updateIpPort(*socketfd, ip, &port);
-  close(*socketfd);
-  connection(ip, port, socketfd);
+  int port, socket_B;
+
+  s_readPASV(*socket_A, ip, &port);
+
+  printf("- Term B\n");
+  connection(ip, port, &socket_B);
+
+  return socket_B;
 }
 
-void download(int socketfd, char *file)
-{
-    int fd = open(file, O_CREAT | O_WRONLY, "0777");
+void download(int socket_A, int socket_B, Data data) {
+  printf("- Term A\n");
+  char* cmd = malloc(8 + strlen(data.path));
+  sprintf(cmd, "retr %s\n", data.path);
 
-    if (fd == -1)
-    {
-        fprintf(stderr, "error\n");
-    }
+  sendCommand(socket_A, cmd);
+  s_read(socket_A);
 
-    size_t read_bytes, written_bytes;
-    int BUF_SIZE = 20;
-    char buf[BUF_SIZE];
+  free(cmd);
 
-    while ((read_bytes = read(socketfd, buf, BUF_SIZE)) > 0)
-    {
-        written_bytes = write(fd, buf, read_bytes);
-
-        if (read_bytes > written_bytes)
-        {
-            close(fd);
-            fprintf(stderr, "failed");
-            return -1;
-        }
-    }
-
-    close(fd);
-    return 0;
+  printf("Term B\n");
+  save(socket_B, data.filename);
 }
 
-void disconnect(int socketfd)
+void save(int socket_B, char* filename) {
+  int fd = open(filename, O_CREAT | O_WRONLY, 0777);
+
+  if (fd == -1) {
+    fprintf(stderr, "error\n");
+  }
+
+  size_t read_bytes, written_bytes;
+  int BUF_SIZE = 1;
+  char buf[BUF_SIZE];
+
+  do {
+    read_bytes = read(socket_B, buf, BUF_SIZE);
+    if (read_bytes > 0)
+     write(fd, buf, read_bytes);
+  } while (read_bytes > 0);
+
+  close(fd);
+}
+
+void disconnect(int socket_A)
 {
-    close(socketfd);
+    close(socket_A);
 }

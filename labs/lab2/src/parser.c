@@ -5,7 +5,8 @@ void parse_url(Data* data, char* url) {
   char* ftp = strtok(url, "/");
   char *user_pass_host = strtok(NULL, "/");
   
-  strcpy(data->file, strtok(NULL, ""));
+  strcpy(data->path, strtok(NULL, ""));
+  getfilename(data);
 
   if (strcmp(ftp, FTP) != 0) {
     fprintf(stderr, "invalid url ftp://\n");
@@ -28,4 +29,16 @@ void parse_url(Data* data, char* url) {
       strcpy(data->password, pass);
       strcpy(data->host, strtok(NULL, ""));
     }
+}
+
+void getfilename(Data* data) {
+  char path[256];
+  strcpy(path, data->path);
+
+  char* foo = strtok(path, "/");
+  while (foo != NULL) {
+    strcpy(data->filename, foo);
+    foo = strtok(NULL, "/");
+  }
+  return 0;
 }

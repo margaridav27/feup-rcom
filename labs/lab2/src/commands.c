@@ -4,20 +4,22 @@
 
 int sendCommand(int socketfd, char *cmd)
 {
-
   size_t cmd_len = strlen(cmd);
+
+  printf("%s", cmd);
 
   if (write(socketfd, cmd, cmd_len) != cmd_len) {
     fprintf(stderr, "error sendComand()");
     return -1;
-    }
+  }
 
     return 0;
 }
 
 //TODO ERRORS
-void readResponse(int socketfd)
+void s_read(int socketfd)
 {
+
   FILE* file = fdopen(socketfd, "r");
 
   if (file == NULL) {
@@ -25,22 +27,25 @@ void readResponse(int socketfd)
     exit(-1);
   }
 
-  char* buf = NULL;
+  char* buf = NULL, code[4];
   size_t buf_len = 0;
 
   while (getline(&buf, &buf_len, file) >= 0) {
     printf("%s", buf);
 
     if (buf[3] == ' ') {
-      // verify codes
+      memcpy(code, buf, 3);
+
+      if(!strcmp(code, "421"))
+        exit(0);
       break;
     }
   }
-    return 0;
+
+  return 0;
 }
 
-//TODO  related to previous missing all
-void updateIpPort(int socketfd, char *ip, int *port)
+void s_readPASV(int socketfd, char *ip, int *port)
 {
   FILE* file = fdopen(socketfd, "r");
 
