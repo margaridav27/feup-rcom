@@ -4,48 +4,51 @@
 #include "../include/parser.h"
 
 /**
- * @brief Get the ip object
- *
+ * @brief 
+ *  the ip from host name
  * @param data
  */
-void get_ip(Data* data);
+void get_ip(Data *data);
 
 /**
  * @brief
- *
+ * main function that executes the flow of the program
  * @param data
  */
 void execute(Data data);
 
 /**
  * @brief
+ * establishes ftp connection using ip and port 
  *
  * @param ip
  * @param port
- * @param socketfd
+ * @param socketfd returned as parameter
  */
-void connection(char* ip, int port, int* socketfd);
+void connection(char *ip, int port, int *socketfd);
 
 /**
  * @brief
- *
- * @param socketfd
+ * sends user and pass commands and reads respective answers
+ * @param socket_A
  * @param user
  * @param password
  */
-void login(int socketfd, char* user, char* password);
+void login(int socket_A, char *user, char *password);
 
 /**
  * @brief
- *
- * @param socketfd
+ * sends pasv command and reads respective answer
+ * establishes new connection
+ * @param socket_A
  * @return int
  */
-int setPASV(int* socketfd);
+int setPASV(int *socket_A);
 
 /**
  * @brief
- *
+ * sends rtr command and reads respective answer
+ * transfers file retrieved
  * @param socket_A
  * @param socket_B
  * @param data
@@ -53,10 +56,11 @@ int setPASV(int* socketfd);
 void download(int socket_A, int socket_B, Data data);
 
 /**
- * @brief
- *
- * @param socketfd
+ * @brief 
+ * closes previously open file descriptors
+ * @param socket_A 
+ * @param socket_B 
  */
-void disconnect(int socketfd);
+void disconnect(int socket_A, int socket_B);
 
 #endif

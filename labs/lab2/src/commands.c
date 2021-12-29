@@ -1,12 +1,14 @@
 #include "../include/commands.h"
 #include <stdlib.h>
 
-int sendCommand(int socketfd, char* cmd) {
+int sendCommand(int socketfd, char *cmd)
+{
   size_t cmd_len = strlen(cmd);
 
   printf("%s", cmd);
 
-  if (write(socketfd, cmd, cmd_len) != cmd_len) {
+  if (write(socketfd, cmd, cmd_len) != cmd_len)
+  {
     fprintf(stderr, "error sendComand()");
     return -1;
   }
@@ -15,10 +17,12 @@ int sendCommand(int socketfd, char* cmd) {
 }
 
 // TODO ERRORS
-void s_read(int socketfd) {
-  FILE* file = fdopen(socketfd, "r");
+void s_read(int socketfd)
+{
+  FILE *file = fdopen(socketfd, "r");
 
-  if (file == NULL) {
+  if (file == NULL)
+  {
     fprintf(stderr, "error opening file");
     exit(-1);
   }
@@ -26,14 +30,21 @@ void s_read(int socketfd) {
   char *buf = NULL, code[4];
   size_t buf_len = 0;
 
-  while (getline(&buf, &buf_len, file) >= 0) {
+  while (getline(&buf, &buf_len, file) >= 0)
+  {
     printf("%s", buf);
 
-    if (buf[3] == ' ') {
+    if (buf[3] == ' ')
+    {
       memcpy(code, buf, 3);
+      char code_i = code[0];
 
-      if (!strcmp(code, "421"))
-        exit(0);
+      if (!strcmp(code_i, FAILURE_CODE_I) || !strcmp(code_i, UNACCEPTED_CODE_I))
+      {
+        fprintf(stderr, "FAILED with code %s.\nAborted.", code);
+        exit(-1);
+      }
+
       break;
     }
   }
@@ -41,15 +52,17 @@ void s_read(int socketfd) {
   return 0;
 }
 
-void s_readPASV(int socketfd, char* ip, int* port) {
-  FILE* file = fdopen(socketfd, "r");
+void s_readPASV(int socketfd, char *ip, int *port)
+{
+  FILE *file = fdopen(socketfd, "r");
 
-  if (file == NULL) {
+  if (file == NULL)
+  {
     fprintf(stderr, "error opening file");
     exit(-1);
   }
 
-  char* buf = NULL;
+  char *buf = NULL;
   size_t buf_len = 0;
 
   getline(&buf, &buf_len, file);
