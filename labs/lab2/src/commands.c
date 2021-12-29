@@ -1,5 +1,5 @@
-#include <stdlib.h>
 #include "../include/commands.h"
+#include <stdlib.h>
 
 
 int sendCommand(int socketfd, char *cmd)
@@ -13,7 +13,7 @@ int sendCommand(int socketfd, char *cmd)
     return -1;
   }
 
-    return 0;
+  return 0;
 }
 
 //TODO ERRORS
@@ -68,7 +68,7 @@ void s_readPASV(int socketfd, char *ip, int *port)
   strcpy(ip3, strtok(NULL, ","));
   strcpy(ip4, strtok(NULL, ","));
 
-  snprintf(ip,17, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
+  snprintf(ip, 17, "%s.%s.%s.%s", ip1, ip2, ip3, ip4);
 
   strcpy(port1, strtok(NULL, ","));
   strcpy(port2, strtok(NULL, ")"));

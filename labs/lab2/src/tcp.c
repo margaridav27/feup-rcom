@@ -1,3 +1,4 @@
+#include "../include/tcp.h"
 #include <arpa/inet.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -7,8 +8,6 @@
 #include <string.h>
 #include <sys/socket.h>
 #include "../include/commands.h"
-#include "../include/tcp.h"
-
 
 void get_ip(Data* data) {
   struct hostent* h;
@@ -24,7 +23,6 @@ void get_ip(Data* data) {
 
   printf("Host name  : %s\n", h->h_name);
   printf("IP Address : %s\n", inet_ntoa(*((struct in_addr*)h->h_addr_list[0])));
-
 
   strcpy(data->ip, ip);
   strcpy(data->host, h->h_name);
@@ -55,8 +53,10 @@ void connection(char *ip, int port, int *socket_fd)
   /*server address handling*/
   bzero((char*)&server_addr, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
-  server_addr.sin_addr.s_addr = inet_addr(ip); /*32 bit Internet address network byte ordered*/
-  server_addr.sin_port = htons(port); /*server TCP port must be network byte ordered */
+  server_addr.sin_addr.s_addr =
+      inet_addr(ip); /*32 bit Internet address network byte ordered*/
+  server_addr.sin_port =
+      htons(port); /*server TCP port must be network byte ordered */
 
   /*open a TCP socket*/
   if ((*socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
