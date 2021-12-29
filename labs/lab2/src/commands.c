@@ -16,7 +16,6 @@ int sendCommand(int socketfd, char *cmd)
   return 0;
 }
 
-// TODO ERRORS
 void s_read(int socketfd)
 {
   FILE *file = fdopen(socketfd, "r");
