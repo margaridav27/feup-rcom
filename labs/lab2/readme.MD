@@ -9,7 +9,7 @@
 [Relatório](https://1drv.ms/w/s!Ah6wv8_UYthOgQAiG9QBLGRJufLg?e=bqXloo)
 
 
-#TO DO DOMINGO
+# TO DO DOMINGO
 
 - rever parte 1 
 - copiar código
