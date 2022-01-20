@@ -18,7 +18,7 @@ int sendCommand(int socketfd, char *cmd);
  * @param socketfd 
  * @param cmd 
  */
-void readResponse(int socketfd);
+void s_read(int socketfd);
 
 /**
  * @brief 
@@ -26,6 +26,6 @@ void readResponse(int socketfd);
  * @param ip 
  * @param port 
  */
-void updateIpPort(int socketfd, char *ip, int *port);
+void s_readPASV(int socketfd, char* ip, int* port);
 
 #endif

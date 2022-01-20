@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include "../include/commands.h"
 
 void get_ip(Data* data) {
@@ -26,7 +27,6 @@ void get_ip(Data* data) {
 
   strcpy(data->ip, ip);
   strcpy(data->host, h->h_name);
-  return 0;
 }
 
 void execute(Data data) {
@@ -81,7 +81,10 @@ void login(int socket_A, char *user, char *password)
   sendCommand(socket_A, cmd);
   s_read(socket_A);
 
-  realloc(cmd, 8 + strlen(password));
+  char* ptr = realloc(cmd, 8 + strlen(password));
+
+  if (ptr == NULL)
+    return;
 
   sprintf(cmd, "pass %s\n", password);
   sendCommand(socket_A, cmd);
@@ -113,12 +116,14 @@ void download(int socket_A, int socket_B, Data data) {
   sprintf(cmd, "retr %s\n", data.path);
 
   sendCommand(socket_A, cmd);
-  s_read(socket_A);
 
   free(cmd);
 
   printf("Term B\n");
   save(socket_B, data.filename);
+
+  printf("- Term A\n");
+  s_read(socket_A);
 }
 
 void save(int socket_B, char* filename) {
@@ -128,14 +133,15 @@ void save(int socket_B, char* filename) {
     fprintf(stderr, "error\n");
   }
 
-  size_t read_bytes, written_bytes;
+  size_t read_bytes;
   int BUF_SIZE = 1;
   char buf[BUF_SIZE];
 
   do {
     read_bytes = read(socket_B, buf, BUF_SIZE);
-    if (read_bytes > 0)
-     write(fd, buf, read_bytes);
+    if (read_bytes > 0) {
+      write(fd, buf, read_bytes);
+    }
   } while (read_bytes > 0);
 
   close(fd);

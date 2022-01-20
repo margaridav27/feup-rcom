@@ -15,8 +15,5 @@ int main(int argc, char** argv) {
   // get ip with hostname
   get_ip(data);
 
-    //get ip with hostname
-    get_ip(data);
-
-    execute(*data);
+  execute(*data);
 }

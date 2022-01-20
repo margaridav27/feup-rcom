@@ -54,7 +54,15 @@ void download(int socket_A, int socket_B, Data data);
 /**
  * @brief 
  * 
- * @param socketfd 
+ * @param socket_B 
+ * @param filename 
+ */
+void save(int socket_B, char* filename);
+
+/**
+ * @brief
+ *
+ * @param socketfd
  */
 void disconnect(int socketfd);
 #endif

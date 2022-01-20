@@ -1,6 +1,6 @@
 #include "../include/commands.h"
 #include <stdlib.h>
-
+#include <unistd.h>
 
 int sendCommand(int socketfd, char *cmd)
 {
@@ -16,7 +16,6 @@ int sendCommand(int socketfd, char *cmd)
   return 0;
 }
 
-//TODO ERRORS
 void s_read(int socketfd)
 {
 
@@ -41,8 +40,6 @@ void s_read(int socketfd)
       break;
     }
   }
-
-  return 0;
 }
 
 void s_readPASV(int socketfd, char *ip, int *port)
@@ -74,5 +71,4 @@ void s_readPASV(int socketfd, char *ip, int *port)
   strcpy(port2, strtok(NULL, ")"));
 
   *port = atoi(port1) * 256 + atoi(port2);
-  return 0;
 }

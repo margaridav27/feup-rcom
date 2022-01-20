@@ -24,5 +24,6 @@ typedef struct
  * @param url full string received in arguments
  */
 void parse_url(Data* data, char* url);
+void getfilename(Data* data);
 
 #endif

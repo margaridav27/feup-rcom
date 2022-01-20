@@ -39,5 +39,4 @@ void getfilename(Data* data) {
     strcpy(data->filename, foo);
     foo = strtok(NULL, "/");
   }
-  return 0;
 }
